@@ -1,7 +1,9 @@
-/* Drop a teletext font (e.g. Bedstead, public domain) at /fonts/teletext.woff2 or .otf to use it. */
+/* Bedstead by Ben Harris, public domain: https://bjh21.me.uk/bedstead/
+   Its em is 10 pixel rows, so font-size = cell height; the extended cut is 0.75em wide. */
 @font-face {
-  font-family: 'Teletext';
-  src: url('/fonts/teletext.woff2') format('woff2'), url('/fonts/teletext.otf') format('opentype');
+  font-family: 'Bedstead';
+  src: url('/fonts/bedstead-extended.otf') format('opentype');
+  font-display: block;
 }
 
 :root {
@@ -55,16 +57,17 @@ main {
   overflow: hidden;
 }
 
-/* Scanlines and a little bloom. */
+/* Scanlines and vignette; S toggles them off. */
 .glass::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    repeating-linear-gradient(to bottom, #0000 0 2px, #0003 2px 3px),
+    repeating-linear-gradient(to bottom, #0000 0 2px, #0002 2px 3px),
     radial-gradient(ellipse at center, #0000 60%, #0008 100%);
 }
+.glass.flat::after { display: none; }
 
 .screen {
   position: absolute;
@@ -72,8 +75,8 @@ main {
   top: var(--gap);
   width: calc(var(--cw) * 40);
   height: calc(var(--ch) * 25);
-  font-family: 'Teletext', 'VT323', monospace;
-  font-size: calc(var(--ch) * 1.15);
+  font-family: 'Bedstead', monospace;
+  font-size: var(--ch);
   line-height: var(--ch);
   user-select: none;
 }
@@ -90,8 +93,8 @@ main {
   white-space: pre;
   overflow: hidden;
 }
-.cell > span { display: inline-block; transform: scaleX(1.45); text-shadow: 0 0 3px currentColor; }
-.row.dh .cell > span { transform: scale(1.45, 2); transform-origin: 50% 0; }
+.cell > span { display: inline-block; }
+.row.dh .cell > span { transform: scaleY(2); transform-origin: 50% 0; }
 .cell.link { cursor: pointer; }
 .row:has(.link:hover) .link { text-decoration: underline; }
 

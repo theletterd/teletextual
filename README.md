@@ -15,6 +15,7 @@ No dependencies; needs Node 20+.
 - Type a three-digit page number (or use the remote). `100` is the index.
 - `←` / `→` previous / next page, `↑` / `↓` subpages, `H` holds the subpage.
 - `R` `G` `Y` `C` (or F1–F4) are the fastext buttons on the bottom row.
+- `S` toggles the scanlines.
 - Click any headline or page number. "Full story at source" opens the article.
 - Pages deep-link: `/300` opens Sport.
 
@@ -35,6 +36,7 @@ No dependencies; needs Node 20+.
 | 520 | Science |
 | 540 | Hacker News |
 | 600 | Entertainment |
+| 700 | Quiz |
 
 Each section's stories are numbered from the page after its index.
 
@@ -45,11 +47,17 @@ big mosaic font, so A–Z, 0–9, space and `-`), a background colour from the
 teletext palette, and one or more RSS/Atom feeds, merged newest-first.
 Weather cities are lat/lon pairs. Feeds refresh every `refreshMinutes`.
 
+## Quiz
+
+Page 700 is a Bamboozle-style game: ten multiple-choice questions built from
+the current feeds (fill in a headline's missing word, which section ran a
+story, which city is warmest). Answer with the coloured buttons or by clicking.
+
 ## Font
 
-It uses VT323 from Google Fonts. For a more authentic look, put a teletext
-font such as [Bedstead](https://bjh21.me.uk/bedstead/) at
-`public/fonts/teletext.woff2` (or `.otf`) and it is picked up automatically.
+The screen uses [Bedstead](https://bjh21.me.uk/bedstead/) by Ben Harris, a
+public-domain recreation of the SAA5050 teletext character generator, in
+`public/fonts/`.
 
 ## Layout
 
@@ -57,4 +65,5 @@ font such as [Bedstead](https://bjh21.me.uk/bedstead/) at
 - `lib/feeds.js` – RSS/Atom and Open-Meteo fetching
 - `lib/pages.js` – page layouts (index, section, story, weather, status)
 - `lib/font.js` – 3×5 pixel font rendered as sextant mosaics
-- `public/` – the TV, the remote and the renderer
+- `lib/quiz.js` – builds the quiz question pool from the day's stories
+- `public/` – the TV, the remote, the renderer and the quiz game

@@ -1,5 +1,7 @@
 // Teletextual client: draws 40x25 teletext pages and handles page entry.
 
+import { Quiz } from './quiz.js';
+
 const COLS = 40;
 const ROWS = 25;
 const SUBPAGE_SECONDS = 12;
@@ -37,6 +39,7 @@ const state = {
   hold: false,
   subTimer: 0,
   rollTimer: 0,
+  quiz: null,         // game in progress on the quiz page
   seq: 0,
 };
 
@@ -110,7 +113,7 @@ function drawBody() {
 function drawFastext() {
   const links = state.current?.fastext ?? [];
   const segs = [];
-  for (const f of links) segs.push({ t: ' ' + pad(f.label, 9), fg: f.colour, link: String(f.page) });
+  for (const f of links) segs.push({ t: ' ' + pad(f.label, 9), fg: f.colour, link: f.link ?? String(f.page) });
   writeRow(24, segs);
 }
 
@@ -126,6 +129,8 @@ async function loadIndex() {
   try {
     const res = await fetch('/api/pages');
     const data = await res.json();
+    if (state.build && data.build !== state.build) location.reload();
+    state.build = data.build;
     state.index = data.pages;
     state.cache.clear();
   } catch { /* offline: keep what we have */ }
@@ -185,7 +190,8 @@ async function goto(num, { instant = false } = {}) {
   if (seq !== state.seq) return;
   clearInterval(state.rollTimer);
   state.searching = false;
-  state.current = page ?? notFound(num);
+  if (page?.quiz && !state.quiz?.inProgress) state.quiz = new Quiz(page);
+  state.current = page?.quiz ? state.quiz.view() : page ?? notFound(num);
   state.sub = 0;
   restartSubTimer();
   render();
@@ -214,7 +220,16 @@ function restartSubTimer() {
 
 function fastext(i) {
   const f = state.current?.fastext?.[i];
-  if (f) goto(f.page);
+  if (f?.link?.startsWith('quiz:')) quizPress(i);
+  else if (f) goto(f.page);
+}
+
+function quizPress(i) {
+  const dest = state.quiz.press(i);
+  if (dest) return goto(dest);
+  state.current = state.quiz.view();
+  state.sub = 0;
+  render();
 }
 
 function digit(d) {
@@ -236,6 +251,9 @@ function handleKey(key) {
     case 'y': case 'f3': return fastext(2);
     case 'c': case 'b': case 'f4': return fastext(3);
     case 'i': case 'home': return goto(100);
+    case 's':
+      document.querySelector('.glass').classList.toggle('flat');
+      return;
     case 'h':
       state.hold = !state.hold;
       holdBtn.classList.toggle('on', state.hold);
@@ -260,7 +278,8 @@ document.querySelector('.remote').addEventListener('click', (e) => {
 screen.addEventListener('click', (e) => {
   const link = e.target.closest('.cell')?.dataset.link;
   if (!link) return;
-  if (/^\d{3}$/.test(link)) goto(link);
+  if (link.startsWith('quiz:')) quizPress(Number(link.slice(5)));
+  else if (/^\d{3}$/.test(link)) goto(link);
   else window.open(link, '_blank', 'noopener');
 });
 
@@ -284,7 +303,7 @@ fit();
 // --- start ---------------------------------------------------------------
 
 setInterval(drawHeader, 1000);
-setInterval(loadIndex, 5 * 60_000);
+setInterval(loadIndex, 60_000);
 await loadIndex();
 const start = location.pathname.match(/^\/(\d{3})$/)?.[1] ?? 100;
 goto(start, { instant: true });

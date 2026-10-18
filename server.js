@@ -5,13 +5,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchFeed, fetchWeather } from './lib/feeds.js';
-import { sectionPages, indexPage, weatherPages, statusPage } from './lib/pages.js';
+import { sectionPages, indexPage, weatherPages, statusPage, quizPage } from './lib/pages.js';
+import { buildQuiz } from './lib/quiz.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3100;
 const config = JSON.parse(await fs.readFile(path.join(ROOT, 'sources.json'), 'utf8'));
 
 let pages = new Map();
+// Changes on every restart so open tabs know to reload for new client code.
+const build = Date.now().toString(36);
 let updated = null;
 
 async function refresh() {
@@ -41,10 +44,11 @@ async function refresh() {
   const add = (p) => next.set(p.num, p);
   config.sections.forEach((s, i) => sectionPages(s, sectionItems[i], now).forEach(add));
 
-  const extras = [{ name: 'Sources', page: 199 }];
+  const extras = [{ name: 'Sources', page: 199 }, { name: 'Quiz', page: 700 }];
+  let cities = null;
   if (config.weather) {
     try {
-      const cities = await fetchWeather(config.weather.cities);
+      cities = await fetchWeather(config.weather.cities);
       weatherPages(config.weather.page, cities, now).forEach(add);
       status.push({ name: 'Open-Meteo', count: cities.length, at: now });
     } catch (err) {
@@ -53,6 +57,8 @@ async function refresh() {
     }
     extras.push({ name: 'Weather', page: config.weather.page });
   }
+
+  add(quizPage(700, buildQuiz(config.sections, sectionItems, cities, config.weather?.page)));
 
   // Top stories: first story of the first few sections.
   const top = config.sections
@@ -76,7 +82,7 @@ function json(res, code, body) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/pages') {
-    return json(res, 200, { pages: [...pages.keys()].sort((a, b) => a - b), updated });
+    return json(res, 200, { pages: [...pages.keys()].sort((a, b) => a - b), updated, build });
   }
   const m = url.pathname.match(/^\/api\/page\/(\d{3})$/);
   if (m) {
@@ -94,7 +100,7 @@ const server = http.createServer(async (req, res) => {
   }
   try {
     const data = await fs.readFile(file);
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] ?? 'application/octet-stream' });
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(data);
   } catch {
     json(res, 404, { error: 'not found' });
