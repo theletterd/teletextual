@@ -1,0 +1,150 @@
+/* Drop a teletext font (e.g. Bedstead, public domain) at /fonts/teletext.woff2 or .otf to use it. */
+@font-face {
+  font-family: 'Teletext';
+  src: url('/fonts/teletext.woff2') format('woff2'), url('/fonts/teletext.otf') format('opentype');
+}
+
+:root {
+  --black: #000;
+  --red: #f00;
+  --green: #0f0;
+  --yellow: #ff0;
+  --blue: #00f;
+  --magenta: #f0f;
+  --cyan: #0ff;
+  --white: #fff;
+  --cw: 20px;   /* character cell, 40x25 on a 4:3 screen */
+  --ch: 24px;
+  --gap: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: #15120f;
+  color: #ddd;
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.tv {
+  background: linear-gradient(160deg, #3a332c, #1f1a16);
+  border-radius: 28px;
+  padding: 22px;
+  box-shadow: 0 20px 60px #000a, inset 0 1px 0 #fff2;
+}
+
+.glass {
+  position: relative;
+  width: calc(var(--cw) * 40 + 2 * var(--gap));
+  height: calc(var(--ch) * 25 + 2 * var(--gap));
+  background: #000;
+  border-radius: 18px / 22px;
+  overflow: hidden;
+}
+
+/* Scanlines and a little bloom. */
+.glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, #0000 0 2px, #0003 2px 3px),
+    radial-gradient(ellipse at center, #0000 60%, #0008 100%);
+}
+
+.screen {
+  position: absolute;
+  left: var(--gap);
+  top: var(--gap);
+  width: calc(var(--cw) * 40);
+  height: calc(var(--ch) * 25);
+  font-family: 'Teletext', 'VT323', monospace;
+  font-size: calc(var(--ch) * 1.15);
+  line-height: var(--ch);
+  user-select: none;
+}
+
+.row { display: flex; height: var(--ch); }
+.row.dh { height: calc(var(--ch) * 2); }
+.row.hidden { display: none; }
+
+.cell {
+  position: relative;
+  width: var(--cw);
+  height: 100%;
+  text-align: center;
+  white-space: pre;
+  overflow: hidden;
+}
+.cell > span { display: inline-block; transform: scaleX(1.45); text-shadow: 0 0 3px currentColor; }
+.row.dh .cell > span { transform: scale(1.45, 2); transform-origin: 50% 0; }
+.cell.link { cursor: pointer; }
+.row:has(.link:hover) .link { text-decoration: underline; }
+
+.mosaic {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+}
+
+.fg-black { color: var(--black); } .bg-black { background: var(--black); }
+.fg-red { color: var(--red); } .bg-red { background: var(--red); }
+.fg-green { color: var(--green); } .bg-green { background: var(--green); }
+.fg-yellow { color: var(--yellow); } .bg-yellow { background: var(--yellow); }
+.fg-blue { color: var(--blue); } .bg-blue { background: var(--blue); }
+.fg-magenta { color: var(--magenta); } .bg-magenta { background: var(--magenta); }
+.fg-cyan { color: var(--cyan); } .bg-cyan { background: var(--cyan); }
+.fg-white { color: var(--white); } .bg-white { background: var(--white); }
+
+/* Remote control */
+.remote {
+  width: 210px;
+  background: linear-gradient(#2b2b2e, #1b1b1d);
+  border-radius: 40px 40px 26px 26px;
+  padding: 26px 20px 20px;
+  display: grid;
+  gap: 16px;
+  box-shadow: 0 14px 40px #000a, inset 0 1px 0 #fff2;
+}
+.remote button {
+  font: 600 15px system-ui, sans-serif;
+  color: #eee;
+  background: #3d3d42;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+  box-shadow: 0 2px 0 #000;
+}
+.remote button:active { transform: translateY(1px); box-shadow: none; }
+.remote button.on { background: #b33; }
+.pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fast { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.fast button { height: 22px; padding: 0; border-radius: 6px; }
+.fast .red { background: #d22; } .fast .green { background: #2b2; }
+.fast .yellow { background: #dd2; } .fast .cyan { background: #2cc; }
+.misc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.misc button { font-size: 12px; }
+.help { margin: 0; font-size: 11px; line-height: 1.4; color: #999; text-align: center; }
+
+@media (max-width: 700px) {
+  main { gap: 16px; padding: 16px 16px 24px; align-content: start; }
+  .tv { padding: 10px; border-radius: 16px; }
+  .remote { width: 100%; max-width: 360px; border-radius: 22px; padding: 18px; }
+}

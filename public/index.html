@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teletextual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=block">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <div class="tv">
+      <div class="glass">
+        <div id="screen" class="screen" aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="remote" aria-label="Remote control">
+      <div class="pad">
+        <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+        <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+        <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+        <button data-key="ArrowLeft" title="Previous page">P&minus;</button><button data-key="0">0</button><button data-key="ArrowRight" title="Next page">P+</button>
+      </div>
+      <div class="fast">
+        <button data-key="r" class="red" title="Red (R)"></button>
+        <button data-key="g" class="green" title="Green (G)"></button>
+        <button data-key="y" class="yellow" title="Yellow (Y)"></button>
+        <button data-key="c" class="cyan" title="Cyan (C)"></button>
+      </div>
+      <div class="misc">
+        <button data-key="i">Index</button>
+        <button data-key="h" id="hold">Hold</button>
+        <button data-key="ArrowDown" title="Next subpage">Sub</button>
+      </div>
+      <p class="help">Type a page number. Arrows change page. R G Y C for fastext, H to hold.</p>
+    </div>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

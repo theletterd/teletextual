@@ -1,0 +1,117 @@
+{
+  "refreshMinutes": 5,
+  "sections": [
+    {
+      "page": 101,
+      "title": "HEADLINES",
+      "name": "News Headlines",
+      "short": "Headlines",
+      "colour": "blue",
+      "feeds": [
+        { "name": "BBC News", "url": "https://feeds.bbci.co.uk/news/rss.xml" }
+      ]
+    },
+    {
+      "page": 120,
+      "title": "UK NEWS",
+      "name": "UK",
+      "colour": "blue",
+      "feeds": [
+        { "name": "BBC UK", "url": "https://feeds.bbci.co.uk/news/uk/rss.xml" }
+      ]
+    },
+    {
+      "page": 140,
+      "title": "WORLD",
+      "name": "World",
+      "colour": "blue",
+      "feeds": [
+        { "name": "BBC World", "url": "https://feeds.bbci.co.uk/news/world/rss.xml" },
+        { "name": "Al Jazeera", "url": "https://www.aljazeera.com/xml/rss/all.xml" }
+      ]
+    },
+    {
+      "page": 160,
+      "title": "GUARDIAN",
+      "name": "The Guardian",
+      "short": "Guardian",
+      "colour": "blue",
+      "feeds": [
+        { "name": "Guardian", "url": "https://www.theguardian.com/uk/rss" }
+      ]
+    },
+    {
+      "page": 200,
+      "title": "BUSINESS",
+      "name": "Business",
+      "colour": "magenta",
+      "feeds": [
+        { "name": "BBC Business", "url": "https://feeds.bbci.co.uk/news/business/rss.xml" }
+      ]
+    },
+    {
+      "page": 300,
+      "title": "SPORT",
+      "name": "Sport",
+      "colour": "green",
+      "feeds": [
+        { "name": "BBC Sport", "url": "https://feeds.bbci.co.uk/sport/rss.xml" }
+      ]
+    },
+    {
+      "page": 500,
+      "title": "TECH",
+      "name": "Technology",
+      "short": "Tech",
+      "colour": "red",
+      "feeds": [
+        { "name": "BBC Tech", "url": "https://feeds.bbci.co.uk/news/technology/rss.xml" }
+      ]
+    },
+    {
+      "page": 520,
+      "title": "SCIENCE",
+      "name": "Science",
+      "colour": "red",
+      "feeds": [
+        { "name": "BBC Science", "url": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml" }
+      ]
+    },
+    {
+      "page": 540,
+      "title": "HACKER NEWS",
+      "name": "Hacker News",
+      "short": "HN",
+      "colour": "red",
+      "feeds": [
+        { "name": "Hacker News", "url": "https://hnrss.org/frontpage" }
+      ]
+    },
+    {
+      "page": 600,
+      "title": "ENTS",
+      "name": "Entertainment",
+      "short": "Ents",
+      "colour": "magenta",
+      "feeds": [
+        { "name": "BBC Ents", "url": "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml" }
+      ]
+    }
+  ],
+  "weather": {
+    "page": 400,
+    "cities": [
+      { "name": "London", "lat": 51.51, "lon": -0.13 },
+      { "name": "Birmingham", "lat": 52.49, "lon": -1.89 },
+      { "name": "Manchester", "lat": 53.48, "lon": -2.24 },
+      { "name": "Cardiff", "lat": 51.48, "lon": -3.18 },
+      { "name": "Belfast", "lat": 54.6, "lon": -5.93 },
+      { "name": "Glasgow", "lat": 55.86, "lon": -4.25 },
+      { "name": "Edinburgh", "lat": 55.95, "lon": -3.19 },
+      { "name": "Newcastle", "lat": 54.98, "lon": -1.61 },
+      { "name": "Plymouth", "lat": 50.38, "lon": -4.14 },
+      { "name": "Aberdeen", "lat": 57.15, "lon": -2.09 },
+      { "name": "Norwich", "lat": 52.63, "lon": 1.3 }
+    ]
+  }
+}
