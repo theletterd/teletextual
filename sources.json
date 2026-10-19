@@ -41,6 +41,18 @@
       ]
     },
     {
+      "page": 180,
+      "title": "US NEWS",
+      "name": "US News",
+      "colour": "blue",
+      "max": 18,
+      "feeds": [
+        { "name": "NPR", "url": "https://feeds.npr.org/1001/rss.xml" },
+        { "name": "NYT", "url": "https://rss.nytimes.com/services/xml/rss/nyt/US.xml" },
+        { "name": "BBC US", "url": "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml" }
+      ]
+    },
+    {
       "page": 200,
       "title": "BUSINESS",
       "name": "Business",
@@ -109,20 +121,42 @@
       { "name": "Questionable Content", "url": "https://www.questionablecontent.net/QCRSS.xml" }
     ]
   },
+  "horoscopes": {
+    "page": 670,
+    "name": "Astrology.com",
+    "url": "https://www.astrology.com/horoscopes/daily-horoscope.rss"
+  },
   "weather": {
-    "page": 400,
-    "cities": [
-      { "name": "London", "lat": 51.51, "lon": -0.13 },
-      { "name": "Birmingham", "lat": 52.49, "lon": -1.89 },
-      { "name": "Manchester", "lat": 53.48, "lon": -2.24 },
-      { "name": "Cardiff", "lat": 51.48, "lon": -3.18 },
-      { "name": "Belfast", "lat": 54.6, "lon": -5.93 },
-      { "name": "Glasgow", "lat": 55.86, "lon": -4.25 },
-      { "name": "Edinburgh", "lat": 55.95, "lon": -3.19 },
-      { "name": "Newcastle", "lat": 54.98, "lon": -1.61 },
-      { "name": "Plymouth", "lat": 50.38, "lon": -4.14 },
-      { "name": "Aberdeen", "lat": 57.15, "lon": -2.09 },
-      { "name": "Norwich", "lat": 52.63, "lon": 1.3 }
+    "regions": [
+      {
+        "page": 400,
+        "name": "UK",
+        "units": "C",
+        "cities": [
+          { "name": "London", "lat": 51.51, "lon": -0.13 },
+          { "name": "Birmingham", "lat": 52.49, "lon": -1.89 },
+          { "name": "Manchester", "lat": 53.48, "lon": -2.24 },
+          { "name": "Cardiff", "lat": 51.48, "lon": -3.18 },
+          { "name": "Belfast", "lat": 54.6, "lon": -5.93 },
+          { "name": "Glasgow", "lat": 55.86, "lon": -4.25 },
+          { "name": "Edinburgh", "lat": 55.95, "lon": -3.19 },
+          { "name": "Newcastle", "lat": 54.98, "lon": -1.61 },
+          { "name": "Plymouth", "lat": 50.38, "lon": -4.14 },
+          { "name": "Aberdeen", "lat": 57.15, "lon": -2.09 },
+          { "name": "Norwich", "lat": 52.63, "lon": 1.3 }
+        ]
+      },
+      {
+        "page": 410,
+        "name": "USA",
+        "units": "F",
+        "cities": [
+          { "name": "San Francisco", "lat": 37.77, "lon": -122.42 },
+          { "name": "Portland OR", "lat": 45.52, "lon": -122.68 },
+          { "name": "Seattle", "lat": 47.61, "lon": -122.33 },
+          { "name": "New York", "lat": 40.71, "lon": -74.01 }
+        ]
+      }
     ]
   }
 }

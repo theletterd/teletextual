@@ -28,15 +28,18 @@ No dependencies; needs Node 20+.
 | 120 | UK (BBC) |
 | 140 | World (BBC, Al Jazeera) |
 | 160 | The Guardian |
+| 180 | US News (NPR, NYT, BBC US) |
 | 199 | Feed status |
 | 200 | Business |
 | 300 | Sport |
-| 400–401 | Weather now / outlook (Open-Meteo) |
+| 400–401 | UK weather now / outlook (Open-Meteo) |
+| 410–411 | US weather now / outlook, in °F |
 | 500 | Technology |
 | 520 | Science |
 | 540 | Hacker News |
 | 600 | Entertainment |
 | 650 | Comics |
+| 670–682 | Horoscopes (Astrology.com) |
 
 Each section's stories are numbered from the page after its index.
 
@@ -45,7 +48,8 @@ Each section's stories are numbered from the page after its index.
 Edit `sources.json`. Each section has a page number, a title (drawn in the
 big mosaic font, so A–Z, 0–9, space and `-`), a background colour from the
 teletext palette, and one or more RSS/Atom feeds, merged newest-first.
-Weather cities are lat/lon pairs. Feeds refresh every `refreshMinutes`.
+Weather is grouped into regions, each with its own page, units (`C` or `F`)
+and lat/lon cities. Feeds refresh every `refreshMinutes`.
 
 ## Comics
 

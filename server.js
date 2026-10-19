@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchFeed, fetchWeather } from './lib/feeds.js';
-import { sectionPages, indexPage, weatherPages, statusPage, comicPages } from './lib/pages.js';
+import { sectionPages, indexPage, weatherPages, statusPage, comicPages, horoscopePages } from './lib/pages.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3100;
@@ -80,16 +80,29 @@ async function refresh() {
     comicPages(config.comics.page, groups, now).forEach(add);
     extras.push({ name: 'Comics', page: config.comics.page });
   }
-  if (config.weather) {
+  if (config.horoscopes) {
+    const h = config.horoscopes;
     try {
-      const cities = await fetchWeather(config.weather.cities);
-      weatherPages(config.weather.page, cities, now).forEach(add);
-      status.push({ name: 'Open-Meteo', count: cities.length, at: now });
+      // Keep the reading; drop the "More horoscopes!" links that follow it.
+      const items = (await fetchFeed(h)).map((it) => ({ ...it, body: it.body.split(/\s*More horoscopes!/)[0] }));
+      horoscopePages(h.page, items, h.name).forEach(add);
+      status.push({ name: h.name, count: items.length, at: now });
     } catch (err) {
-      status.push({ name: 'Open-Meteo', error: err.message, at: now });
-      console.warn(`weather: ${err.message}`);
+      status.push({ name: h.name, error: err.message, at: now });
     }
-    extras.push({ name: 'Weather', page: config.weather.page });
+    extras.push({ name: 'Horoscopes', page: h.page });
+  }
+  for (const region of config.weather?.regions ?? []) {
+    const label = `Weather ${region.name}`;
+    try {
+      const cities = await fetchWeather(region.cities, region.units);
+      weatherPages(region, cities, now, config.weather.regions).forEach(add);
+      status.push({ name: label, count: cities.length, at: now });
+    } catch (err) {
+      status.push({ name: label, error: err.message, at: now });
+      console.warn(`${label}: ${err.message}`);
+    }
+    extras.push({ name: label, page: region.page });
   }
 
   // Top stories: first story of the first few sections.
