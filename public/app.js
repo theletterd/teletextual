@@ -1,6 +1,7 @@
 // Teletextual client: draws 40x25 teletext pages and handles page entry.
 
 import { Quiz } from './quiz.js';
+import { imageTiles } from './mosaic.js';
 
 const COLS = 40;
 const ROWS = 25;
@@ -8,6 +9,7 @@ const SUBPAGE_SECONDS = 12;
 
 const screen = document.getElementById('screen');
 const holdBtn = document.getElementById('hold');
+const full = document.getElementById('full');
 
 // Build the grid once; rendering just restyles cells.
 const rowEls = [];
@@ -103,7 +105,7 @@ function drawBody() {
     skip = !!row?.dh;
   }
   // Subpage counter in the top right of the content area.
-  if (page && page.subpages.length > 1) {
+  if (page && page.subpages.length > 1 && state.sub >= (page.tileCount ?? 0)) {
     const label = `${state.sub + 1}/${page.subpages.length}`.padStart(5);
     const bg = cells[1][39].className.match(/bg-(\w+)/)?.[1] ?? 'black';
     [...label].forEach((ch, i) => setCell(cells[1][35 + i], ch, bg === 'white' || bg === 'yellow' || bg === 'cyan' ? 'black' : 'white', bg));
@@ -146,6 +148,35 @@ async function fetchPage(num) {
   return page;
 }
 
+// Comic pages arrive with an image URL; draw it as mosaic subpages (once,
+// the cache keeps the result) ahead of the server's text subpage.
+async function expandComic(page) {
+  if (!page?.comic || page.tileCount != null) return page;
+  let tiles = [];
+  try { tiles = await imageTiles(page.comic.img); } catch { /* text page only */ }
+  const n = tiles.length + page.subpages.length;
+  page.subpages = [
+    ...tiles.map((rows, i) => [
+      ...rows,
+      { s: [{ t: ' ' + page.comic.title.slice(0, 32).padEnd(33), fg: 'yellow' }, { t: `${i + 1}/${n}`.padStart(5), fg: 'white' }] },
+      { s: [{ t: ` ${page.comic.source}`, fg: 'cyan' }] },
+    ]),
+    ...page.subpages,
+  ];
+  page.tileCount = tiles.length;
+  return page;
+}
+
+function openFull() {
+  if (!state.current?.comic) return;
+  full.querySelector('img').src = state.current.comic.img;
+  full.hidden = false;
+}
+
+function closeFull() {
+  full.hidden = true;
+}
+
 function notFound(num) {
   return {
     num,
@@ -186,8 +217,9 @@ async function goto(num, { instant = false } = {}) {
 
   // Like a real decoder, wait for the page to come round in the carousel.
   const delay = instant ? 0 : 350 + Math.random() * 700;
-  const [page] = await Promise.all([fetchPage(num).catch(() => null), sleep(delay)]);
+  const [page] = await Promise.all([fetchPage(num).then(expandComic).catch(() => null), sleep(delay)]);
   if (seq !== state.seq) return;
+  closeFull();
   clearInterval(state.rollTimer);
   state.searching = false;
   if (page?.quiz && !state.quiz?.inProgress) state.quiz = new Quiz(page);
@@ -220,7 +252,8 @@ function restartSubTimer() {
 
 function fastext(i) {
   const f = state.current?.fastext?.[i];
-  if (f?.link?.startsWith('quiz:')) quizPress(i);
+  if (f?.link === 'full:') full.hidden ? openFull() : closeFull();
+  else if (f?.link?.startsWith('quiz:')) quizPress(i);
   else if (f) goto(f.page);
 }
 
@@ -259,6 +292,7 @@ function handleKey(key) {
       holdBtn.classList.toggle('on', state.hold);
       return;
     case 'escape': case 'backspace':
+      closeFull();
       state.entry = '';
       return drawHeader();
   }
@@ -275,10 +309,13 @@ document.querySelector('.remote').addEventListener('click', (e) => {
   if (key) handleKey(key);
 });
 
+full.addEventListener('click', closeFull);
+
 screen.addEventListener('click', (e) => {
   const link = e.target.closest('.cell')?.dataset.link;
   if (!link) return;
-  if (link.startsWith('quiz:')) quizPress(Number(link.slice(5)));
+  if (link === 'full:') openFull();
+  else if (link.startsWith('quiz:')) quizPress(Number(link.slice(5)));
   else if (/^\d{3}$/.test(link)) goto(link);
   else window.open(link, '_blank', 'noopener');
 });

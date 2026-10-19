@@ -36,6 +36,7 @@ No dependencies; needs Node 20+.
 | 520 | Science |
 | 540 | Hacker News |
 | 600 | Entertainment |
+| 650 | Comics |
 | 700 | Quiz |
 
 Each section's stories are numbered from the page after its index.
@@ -53,6 +54,16 @@ Page 700 is a Bamboozle-style game: ten multiple-choice questions built from
 the current feeds (fill in a headline's missing word, which section ran a
 story, which city is warmest). Answer with the coloured buttons or by clicking.
 
+## Comics
+
+Page 650 lists the latest strips from xkcd, SMBC, Poorly Drawn Lines,
+Dinosaur Comics and Questionable Content. Each comic page redraws the image
+as teletext mosaics (2×3 pixels per character, two of the eight teletext
+colours per cell), cut into subpages for wide or tall strips. Green shows the
+original image at full size. Any RSS feed with an `<img>` in its items can be
+added under `comics` in `sources.json`. Images are fetched through
+`/api/img`, which only serves images from the current feeds.
+
 ## Font
 
 The screen uses [Bedstead](https://bjh21.me.uk/bedstead/) by Ben Harris, a
@@ -66,4 +77,5 @@ public-domain recreation of the SAA5050 teletext character generator, in
 - `lib/pages.js` – page layouts (index, section, story, weather, status)
 - `lib/font.js` – 3×5 pixel font rendered as sextant mosaics
 - `lib/quiz.js` – builds the quiz question pool from the day's stories
+- `public/mosaic.js` – converts images to teletext mosaic rows
 - `public/` – the TV, the remote, the renderer and the quiz game

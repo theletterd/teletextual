@@ -115,6 +115,20 @@ main {
 .fg-cyan { color: var(--cyan); } .bg-cyan { background: var(--cyan); }
 .fg-white { color: var(--white); } .bg-white { background: var(--white); }
 
+/* Full-size comic over the screen */
+.full {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: safe center;
+  overflow: auto;
+  background: #000;
+  cursor: zoom-out;
+}
+.full[hidden] { display: none; }
+.full img { display: block; width: 100%; height: auto; margin: auto; background: #fff; }
+
 /* Remote control */
 .remote {
   width: 210px;

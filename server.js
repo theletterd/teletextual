@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchFeed, fetchWeather } from './lib/feeds.js';
-import { sectionPages, indexPage, weatherPages, statusPage, quizPage } from './lib/pages.js';
+import { sectionPages, indexPage, weatherPages, statusPage, quizPage, comicPages } from './lib/pages.js';
 import { buildQuiz } from './lib/quiz.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -13,6 +13,21 @@ const PORT = Number(process.env.PORT) || 3100;
 const config = JSON.parse(await fs.readFile(path.join(ROOT, 'sources.json'), 'utf8'));
 
 let pages = new Map();
+let comicImages = new Set(); // image URLs the proxy may fetch
+const imageCache = new Map(); // url -> Promise<{ type, body }>
+
+function getImage(src) {
+  if (!imageCache.has(src)) {
+    const p = fetch(src, { headers: { 'User-Agent': 'Teletextual/0.1' }, signal: AbortSignal.timeout(15000) })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return { type: r.headers.get('content-type') ?? 'image/png', body: Buffer.from(await r.arrayBuffer()) };
+      });
+    p.catch(() => imageCache.delete(src)); // retry next time
+    imageCache.set(src, p);
+  }
+  return imageCache.get(src);
+}
 // Changes on every restart so open tabs know to reload for new client code.
 const build = Date.now().toString(36);
 let updated = null;
@@ -45,6 +60,27 @@ async function refresh() {
   config.sections.forEach((s, i) => sectionPages(s, sectionItems[i], now).forEach(add));
 
   const extras = [{ name: 'Sources', page: 199 }, { name: 'Quiz', page: 700 }];
+  const images = new Set();
+  if (config.comics) {
+    const groups = await Promise.all(config.comics.feeds.map(async (feed) => {
+      try {
+        let items = (await fetchFeed(feed)).filter((it) => it.image).slice(0, config.comics.perFeed ?? 3);
+        // "Saturday Morning Breakfast Cereal - Foo": drop a prefix every item shares.
+        const prefix = items[0]?.title.match(/^.+? - /)?.[0];
+        if (prefix && items.every((it) => it.title.startsWith(prefix))) {
+          items = items.map((it) => ({ ...it, title: it.title.slice(prefix.length) || it.title }));
+        }
+        status.push({ name: feed.name, count: items.length, at: now });
+        items.forEach((it) => images.add(it.image.src));
+        return { feed, items };
+      } catch (err) {
+        status.push({ name: feed.name, error: err.message, at: now });
+        return { feed, items: [] };
+      }
+    }));
+    comicPages(config.comics.page, groups, now).forEach(add);
+    extras.push({ name: 'Comics', page: config.comics.page });
+  }
   let cities = null;
   if (config.weather) {
     try {
@@ -68,6 +104,10 @@ async function refresh() {
   add(statusPage(199, status.sort((a, b) => a.name.localeCompare(b.name))));
 
   pages = next;
+  comicImages = images;
+  // Keep only current comics in memory, and fetch new ones ahead of time.
+  for (const src of imageCache.keys()) if (!images.has(src)) imageCache.delete(src);
+  for (const src of images) getImage(src).catch(() => {});
   updated = now;
   console.log(`refreshed ${next.size} pages in ${Date.now() - started}ms`);
 }
@@ -83,6 +123,19 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/pages') {
     return json(res, 200, { pages: [...pages.keys()].sort((a, b) => a - b), updated, build });
+  }
+  // Same-origin copy of comic images so the client can read their pixels.
+  // Only URLs from the current feeds, so this isn't an open proxy.
+  if (url.pathname === '/api/img') {
+    const src = url.searchParams.get('u');
+    if (!comicImages.has(src)) return json(res, 404, { error: 'unknown image' });
+    try {
+      const img = await getImage(src);
+      res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'max-age=86400' });
+      return res.end(img.body);
+    } catch (err) {
+      return json(res, 502, { error: err.message });
+    }
   }
   const m = url.pathname.match(/^\/api\/page\/(\d{3})$/);
   if (m) {
