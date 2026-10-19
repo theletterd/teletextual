@@ -1,6 +1,6 @@
 // An homage to BBC Test Card F, drawn from scratch: grid, castellations,
 // colour bars, frequency gratings, greyscale, and a girl playing noughts and
-// crosses on a blackboard with her clown. Plus the 1 kHz line-up tone.
+// crosses on a blackboard with her clown. Its 1 kHz tone lives in sound.js.
 
 const W = 1024, H = 768;
 const CX = W / 2, CY = H / 2, R = 300;
@@ -180,22 +180,4 @@ export function drawTestCard(canvas) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('TELETEXTUAL', CX, CY + R - 12);
-}
-
-// The line-up tone: a 1 kHz sine, kept quiet because it is piercing.
-let audio = null;
-export function tone(on, muted) {
-  if (on && !audio) {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 1000;
-    gain.gain.value = 0.05;
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    audio = { ctx, gain };
-  }
-  if (!audio) return;
-  if (on && !muted) audio.ctx.resume();
-  else audio.ctx.suspend();
 }

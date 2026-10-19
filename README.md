@@ -17,7 +17,7 @@ No dependencies; needs Node 20+.
 - `R` `G` `Y` `C` (or F1–F4) are the fastext buttons on the bottom row.
 - `S` toggles the scanlines.
 - `V` TV, `T` text, `X` mix (text over the picture), `U` mute. In TV mode
-  number keys change channel (two digits for 10) and arrows go up and down.
+  number keys change channel (up to two digits) and arrows go up and down.
 - Click any headline or page number. "Full story at source" opens the article.
 - Pages deep-link: `/300` opens Sport.
 
@@ -68,9 +68,10 @@ Channel 0 is a test card, an homage to BBC Test Card F drawn on a canvas
 (`public/testcard.js`), with a 1 kHz tone. Channels that are off air show it
 silently.
 
-Each channel has a `number`. As on a real set, a digit that could start a
-longer number (1 for 10) waits a moment for the next digit; P+ and P- step
-through channels in the order they're listed.
+Each channel has a `number`. As on a real set, channels take up to two
+digits: a single digit waits a second for a second one (`01` is channel 1),
+and a number with no channel shows static and NO SIGNAL, with a hiss. P+ and
+P- step through channels in the order they're listed.
 
 ## Comics
 
@@ -97,4 +98,5 @@ public-domain recreation of the SAA5050 teletext character generator, in
 - `lib/tv.js` – finds each YouTube channel's current live stream
 - `public/mosaic.js` – converts images to teletext mosaic rows
 - `public/tv.js` – the TV picture, channel changes and TEXT / TV / MIX
+- `public/sound.js`, `public/static.js` – test card tone, hiss and snow
 - `public/` – the TV, the remote, and the renderer
