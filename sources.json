@@ -6,7 +6,6 @@
       "title": "HEADLINES",
       "name": "News Headlines",
       "short": "Headlines",
-      "general": true,
       "colour": "blue",
       "feeds": [
         { "name": "BBC News", "url": "https://feeds.bbci.co.uk/news/rss.xml" }
@@ -36,7 +35,6 @@
       "title": "GUARDIAN",
       "name": "The Guardian",
       "short": "Guardian",
-      "general": true,
       "colour": "blue",
       "feeds": [
         { "name": "Guardian", "url": "https://www.theguardian.com/uk/rss" }

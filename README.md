@@ -37,7 +37,6 @@ No dependencies; needs Node 20+.
 | 540 | Hacker News |
 | 600 | Entertainment |
 | 650 | Comics |
-| 700 | Quiz |
 
 Each section's stories are numbered from the page after its index.
 
@@ -47,12 +46,6 @@ Edit `sources.json`. Each section has a page number, a title (drawn in the
 big mosaic font, so A–Z, 0–9, space and `-`), a background colour from the
 teletext palette, and one or more RSS/Atom feeds, merged newest-first.
 Weather cities are lat/lon pairs. Feeds refresh every `refreshMinutes`.
-
-## Quiz
-
-Page 700 is a Bamboozle-style game: ten multiple-choice questions built from
-the current feeds (fill in a headline's missing word, which section ran a
-story, which city is warmest). Answer with the coloured buttons or by clicking.
 
 ## Comics
 
@@ -76,6 +69,5 @@ public-domain recreation of the SAA5050 teletext character generator, in
 - `lib/feeds.js` – RSS/Atom and Open-Meteo fetching
 - `lib/pages.js` – page layouts (index, section, story, weather, status)
 - `lib/font.js` – 3×5 pixel font rendered as sextant mosaics
-- `lib/quiz.js` – builds the quiz question pool from the day's stories
 - `public/mosaic.js` – converts images to teletext mosaic rows
-- `public/` – the TV, the remote, the renderer and the quiz game
+- `public/` – the TV, the remote, and the renderer

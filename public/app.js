@@ -1,6 +1,5 @@
 // Teletextual client: draws 40x25 teletext pages and handles page entry.
 
-import { Quiz } from './quiz.js';
 import { imageTiles } from './mosaic.js';
 
 const COLS = 40;
@@ -41,7 +40,6 @@ const state = {
   hold: false,
   subTimer: 0,
   rollTimer: 0,
-  quiz: null,         // game in progress on the quiz page
   seq: 0,
 };
 
@@ -222,8 +220,7 @@ async function goto(num, { instant = false } = {}) {
   closeFull();
   clearInterval(state.rollTimer);
   state.searching = false;
-  if (page?.quiz && !state.quiz?.inProgress) state.quiz = new Quiz(page);
-  state.current = page?.quiz ? state.quiz.view() : page ?? notFound(num);
+  state.current = page ?? notFound(num);
   state.sub = 0;
   restartSubTimer();
   render();
@@ -253,16 +250,7 @@ function restartSubTimer() {
 function fastext(i) {
   const f = state.current?.fastext?.[i];
   if (f?.link === 'full:') full.hidden ? openFull() : closeFull();
-  else if (f?.link?.startsWith('quiz:')) quizPress(i);
   else if (f) goto(f.page);
-}
-
-function quizPress(i) {
-  const dest = state.quiz.press(i);
-  if (dest) return goto(dest);
-  state.current = state.quiz.view();
-  state.sub = 0;
-  render();
 }
 
 function digit(d) {
@@ -315,7 +303,6 @@ screen.addEventListener('click', (e) => {
   const link = e.target.closest('.cell')?.dataset.link;
   if (!link) return;
   if (link === 'full:') openFull();
-  else if (link.startsWith('quiz:')) quizPress(Number(link.slice(5)));
   else if (/^\d{3}$/.test(link)) goto(link);
   else window.open(link, '_blank', 'noopener');
 });

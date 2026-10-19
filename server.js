@@ -5,8 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchFeed, fetchWeather } from './lib/feeds.js';
-import { sectionPages, indexPage, weatherPages, statusPage, quizPage, comicPages } from './lib/pages.js';
-import { buildQuiz } from './lib/quiz.js';
+import { sectionPages, indexPage, weatherPages, statusPage, comicPages } from './lib/pages.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3100;
@@ -59,7 +58,7 @@ async function refresh() {
   const add = (p) => next.set(p.num, p);
   config.sections.forEach((s, i) => sectionPages(s, sectionItems[i], now).forEach(add));
 
-  const extras = [{ name: 'Sources', page: 199 }, { name: 'Quiz', page: 700 }];
+  const extras = [{ name: 'Sources', page: 199 }];
   const images = new Set();
   if (config.comics) {
     const groups = await Promise.all(config.comics.feeds.map(async (feed) => {
@@ -81,10 +80,9 @@ async function refresh() {
     comicPages(config.comics.page, groups, now).forEach(add);
     extras.push({ name: 'Comics', page: config.comics.page });
   }
-  let cities = null;
   if (config.weather) {
     try {
-      cities = await fetchWeather(config.weather.cities);
+      const cities = await fetchWeather(config.weather.cities);
       weatherPages(config.weather.page, cities, now).forEach(add);
       status.push({ name: 'Open-Meteo', count: cities.length, at: now });
     } catch (err) {
@@ -93,8 +91,6 @@ async function refresh() {
     }
     extras.push({ name: 'Weather', page: config.weather.page });
   }
-
-  add(quizPage(700, buildQuiz(config.sections, sectionItems, cities, config.weather?.page)));
 
   // Top stories: first story of the first few sections.
   const top = config.sections
