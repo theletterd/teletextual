@@ -97,14 +97,14 @@ async function refresh() {
   }
   if (config.tv) {
     const channels = await Promise.all(config.tv.channels.map(async (ch) => {
-      if (ch.testcard) return { name: ch.name, note: ch.note, testcard: true };
+      if (ch.testcard) return { number: ch.number, name: ch.name, note: ch.note, testcard: true };
       try {
         lastLive.set(ch.youtube, await resolveLive(ch.youtube));
       } catch (err) {
         // Keep the previous stream if one lookup fails; it's probably still on.
         status.push({ name: `TV ${ch.name}`, error: err.message, at: now });
       }
-      return { name: ch.name, note: ch.note, ...lastLive.get(ch.youtube) };
+      return { number: ch.number, name: ch.name, note: ch.note, ...lastLive.get(ch.youtube) };
     }));
     tvChannels = channels;
     add(tvGuidePage(config.tv.page, channels));

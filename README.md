@@ -17,7 +17,7 @@ No dependencies; needs Node 20+.
 - `R` `G` `Y` `C` (or F1–F4) are the fastext buttons on the bottom row.
 - `S` toggles the scanlines.
 - `V` TV, `T` text, `X` mix (text over the picture), `U` mute. In TV mode
-  number keys change channel (1–9, then 0) and arrows go up and down.
+  number keys change channel (two digits for 10) and arrows go up and down.
 - Click any headline or page number. "Full story at source" opens the article.
 - Pages deep-link: `/300` opens Sport.
 
@@ -66,7 +66,11 @@ in the US.
 
 Channel 0 is a test card, an homage to BBC Test Card F drawn on a canvas
 (`public/testcard.js`), with a 1 kHz tone. Channels that are off air show it
-silently. Channels past the tenth are reached with P+ and P-.
+silently.
+
+Each channel has a `number`. As on a real set, a digit that could start a
+longer number (1 for 10) waits a moment for the next digit; P+ and P- step
+through channels in the order they're listed.
 
 ## Comics
 

@@ -129,17 +129,17 @@
   "tv": {
     "page": 690,
     "channels": [
-      { "name": "BBC News", "youtube": "UC16niRr50-MSBwiO3YDb3RA", "note": "US only" },
-      { "name": "Sky News", "youtube": "UCoMdktPbSTixAyNGwb-UYkQ" },
-      { "name": "Al Jazeera", "youtube": "UCNye-wNBqNL5ZzHSJj3l8Bg" },
-      { "name": "ABC News", "youtube": "UCBi2mrWuNuyYy4gbM6fU18Q" },
-      { "name": "DW News", "youtube": "UCknLrEdhRCp1aegoMqRaCZg" },
-      { "name": "France 24", "youtube": "UCQfwfsi5VrQ8yKZ-UWmAEFg" },
-      { "name": "Bloomberg", "youtube": "UCIALMKvObZNtJ6AmdCLP7Lg" },
-      { "name": "Euronews", "youtube": "UCSrZ3UV4jOidv8ppoVuvW9Q" },
-      { "name": "NASA ISS", "youtube": "UCLA_DiR1FfKNvjuUpBHmylQ" },
-      { "name": "Test Card", "testcard": true, "note": "1 kHz tone" },
-      { "name": "Lofi Girl", "youtube": "UCSJ4gkVC6NrvII8umztf0Ow" }
+      { "number": 1, "name": "BBC News", "youtube": "UC16niRr50-MSBwiO3YDb3RA", "note": "US only" },
+      { "number": 2, "name": "Sky News", "youtube": "UCoMdktPbSTixAyNGwb-UYkQ" },
+      { "number": 3, "name": "ABC News", "youtube": "UCBi2mrWuNuyYy4gbM6fU18Q" },
+      { "number": 4, "name": "Al Jazeera", "youtube": "UCNye-wNBqNL5ZzHSJj3l8Bg" },
+      { "number": 5, "name": "DW News", "youtube": "UCknLrEdhRCp1aegoMqRaCZg" },
+      { "number": 6, "name": "France 24", "youtube": "UCQfwfsi5VrQ8yKZ-UWmAEFg" },
+      { "number": 7, "name": "Euronews", "youtube": "UCSrZ3UV4jOidv8ppoVuvW9Q" },
+      { "number": 8, "name": "Bloomberg", "youtube": "UCIALMKvObZNtJ6AmdCLP7Lg" },
+      { "number": 9, "name": "NASA ISS", "youtube": "UCLA_DiR1FfKNvjuUpBHmylQ" },
+      { "number": 10, "name": "Lofi Girl", "youtube": "UCSJ4gkVC6NrvII8umztf0Ow" },
+      { "number": 0, "name": "Test Card", "testcard": true, "note": "1 kHz tone" }
     ]
   },
   "weather": {

@@ -18,6 +18,8 @@ let ready = null;
 let osdTimer = 0;
 let started = false;
 let cardDrawn = false;
+let entry = '';      // channel digits typed so far
+let entryTimer = 0;
 
 export const getMode = () => mode;
 
@@ -52,8 +54,6 @@ function showOsd(text) {
   osdTimer = setTimeout(() => { osd.hidden = true; }, 3000);
 }
 
-const channelKey = (i) => (i === 9 ? '0' : String(i + 1));
-
 // The test card stands in for its own channel and for anything off air;
 // only the real test card channel plays the tone.
 function showCard(on, withTone) {
@@ -68,11 +68,11 @@ async function tune(i) {
   started = true;
   current = (i + channels.length) % channels.length;
   const ch = channels[current];
-  showOsd(`${channelKey(current)} ${ch.name.toUpperCase()}`);
+  showOsd(`${ch.number} ${ch.name.toUpperCase()}`);
   if (ch.testcard || !ch.videoId) {
     player?.stopVideo();
     showCard(true, ch.testcard);
-    if (!ch.testcard) showOsd(`${channelKey(current)} OFF AIR`);
+    if (!ch.testcard) showOsd(`${ch.number} OFF AIR`);
     return;
   }
   showCard(false);
@@ -90,15 +90,26 @@ export async function setMode(next) {
   }
   // Start the picture the first time it's wanted; after that it keeps running.
   if (next !== 'text' && !started) await tune(current);
-  else if (next === 'tv' && was !== 'tv') showOsd(`${channelKey(current)} ${channels[current]?.name.toUpperCase() ?? ''}`);
+  else if (next === 'tv' && was !== 'tv') showOsd(`${channels[current]?.number ?? ''} ${channels[current]?.name.toUpperCase() ?? ''}`);
 }
 
 export const channelUp = () => tune(current + 1);
 export const channelDown = () => tune(current - 1);
 
-export function channelByKey(d) {
-  const i = d === '0' ? 9 : Number(d) - 1;
-  if (i < channels.length) tune(i);
+// Like a real set: a digit that could start a longer channel number (1 for
+// 10) waits briefly for the next one, showing "1-"; anything else tunes now.
+export function channelDigit(d) {
+  clearTimeout(entryTimer);
+  entry += d;
+  const tuneTo = () => {
+    const i = channels.findIndex((ch) => String(ch.number) === entry);
+    entry = '';
+    if (i >= 0) tune(i); else osd.hidden = true;
+  };
+  const longer = channels.some((ch) => String(ch.number).length > entry.length && String(ch.number).startsWith(entry));
+  if (!longer) return tuneTo();
+  showOsd(`${entry}-`);
+  entryTimer = setTimeout(tuneTo, 1200);
 }
 
 export function toggleMute() {

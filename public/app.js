@@ -263,7 +263,7 @@ function digit(d) {
 
 // In TV mode the remote changes channel; MIX behaves like TEXT.
 function handleTvKey(key) {
-  if (/^\d$/.test(key)) return tv.channelByKey(key);
+  if (/^\d$/.test(key)) return tv.channelDigit(key);
   switch (key.toLowerCase()) {
     case 'arrowright': case 'arrowup': case '+': return tv.channelUp();
     case 'arrowleft': case 'arrowdown': case '-': return tv.channelDown();
