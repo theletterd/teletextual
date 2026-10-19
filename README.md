@@ -64,6 +64,10 @@ looks up each channel's current live video on every refresh, because stream
 IDs change when a broadcaster restarts. BBC News's YouTube stream only plays
 in the US.
 
+Channel 0 is a test card, an homage to BBC Test Card F drawn on a canvas
+(`public/testcard.js`), with a 1 kHz tone. Channels that are off air show it
+silently. Channels past the tenth are reached with P+ and P-.
+
 ## Comics
 
 Page 650 lists the latest strips from xkcd, SMBC, Poorly Drawn Lines,

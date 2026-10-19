@@ -97,6 +97,7 @@ async function refresh() {
   }
   if (config.tv) {
     const channels = await Promise.all(config.tv.channels.map(async (ch) => {
+      if (ch.testcard) return { name: ch.name, note: ch.note, testcard: true };
       try {
         lastLive.set(ch.youtube, await resolveLive(ch.youtube));
       } catch (err) {

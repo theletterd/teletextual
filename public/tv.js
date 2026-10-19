@@ -2,7 +2,10 @@
 // Live streams play through YouTube's iframe player; as on a real TV, the
 // sound carries on while you read teletext.
 
+import { drawTestCard, tone } from './testcard.js';
+
 const glass = document.querySelector('.glass');
+const card = document.getElementById('testcard');
 const osd = document.getElementById('osd');
 const KEYS = { text: 't', tv: 'v', mix: 'x' };
 
@@ -13,6 +16,8 @@ let muted = false;
 let player = null;
 let ready = null;
 let osdTimer = 0;
+let started = false;
+let cardDrawn = false;
 
 export const getMode = () => mode;
 
@@ -47,15 +52,30 @@ function showOsd(text) {
   osdTimer = setTimeout(() => { osd.hidden = true; }, 3000);
 }
 
-const channelKey = (i) => String((i + 1) % 10);
+const channelKey = (i) => (i === 9 ? '0' : String(i + 1));
+
+// The test card stands in for its own channel and for anything off air;
+// only the real test card channel plays the tone.
+function showCard(on, withTone) {
+  if (on && !cardDrawn) { drawTestCard(card); cardDrawn = true; }
+  card.hidden = !on;
+  tone(on && withTone, muted);
+}
 
 async function tune(i) {
   if (!channels.length) await loadChannels();
   if (!channels.length) return showOsd('NO SIGNAL');
+  started = true;
   current = (i + channels.length) % channels.length;
   const ch = channels[current];
   showOsd(`${channelKey(current)} ${ch.name.toUpperCase()}`);
-  if (!ch.videoId) return showOsd(`${channelKey(current)} OFF AIR`);
+  if (ch.testcard || !ch.videoId) {
+    player?.stopVideo();
+    showCard(true, ch.testcard);
+    if (!ch.testcard) showOsd(`${channelKey(current)} OFF AIR`);
+    return;
+  }
+  showCard(false);
   await loadPlayer();
   player.loadVideoById(ch.videoId);
   if (!muted) player.unMute();
@@ -69,7 +89,7 @@ export async function setMode(next) {
     document.querySelector(`.modes [data-key="${key}"]`)?.classList.toggle('on', m === next);
   }
   // Start the picture the first time it's wanted; after that it keeps running.
-  if (next !== 'text' && !player) await tune(current);
+  if (next !== 'text' && !started) await tune(current);
   else if (next === 'tv' && was !== 'tv') showOsd(`${channelKey(current)} ${channels[current]?.name.toUpperCase() ?? ''}`);
 }
 
@@ -84,6 +104,7 @@ export function channelByKey(d) {
 export function toggleMute() {
   muted = !muted;
   if (muted) player?.mute(); else player?.unMute();
+  tone(!card.hidden && channels[current]?.testcard, muted);
   document.querySelector('.modes [data-key="u"]')?.classList.toggle('on', muted);
   showOsd(muted ? 'MUTE' : 'SOUND');
 }

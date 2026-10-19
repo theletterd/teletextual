@@ -138,6 +138,7 @@
       { "name": "Bloomberg", "youtube": "UCIALMKvObZNtJ6AmdCLP7Lg" },
       { "name": "Euronews", "youtube": "UCSrZ3UV4jOidv8ppoVuvW9Q" },
       { "name": "NASA ISS", "youtube": "UCLA_DiR1FfKNvjuUpBHmylQ" },
+      { "name": "Test Card", "testcard": true, "note": "1 kHz tone" },
       { "name": "Lofi Girl", "youtube": "UCSJ4gkVC6NrvII8umztf0Ow" }
     ]
   },
