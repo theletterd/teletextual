@@ -284,7 +284,7 @@ function handleKey(key) {
     case 'u': return tv.toggleMute();
     case 'arrowright': case '+': return step(1);
     case 'arrowleft': case '-': return step(-1);
-    case 'arrowdown': return changeSub(1);
+    case 'arrowdown': case 'sub': return changeSub(1);
     case 'arrowup': return changeSub(-1);
     case 'r': case 'f1': return fastext(0);
     case 'g': case 'f2': return fastext(1);
