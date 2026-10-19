@@ -1,6 +1,7 @@
 // Teletextual client: draws 40x25 teletext pages and handles page entry.
 
 import { imageTiles } from './mosaic.js';
+import * as tv from './tv.js';
 
 const COLS = 40;
 const ROWS = 25;
@@ -260,9 +261,27 @@ function digit(d) {
   else drawHeader();
 }
 
+// In TV mode the remote changes channel; MIX behaves like TEXT.
+function handleTvKey(key) {
+  if (/^\d$/.test(key)) return tv.channelByKey(key);
+  switch (key.toLowerCase()) {
+    case 'arrowright': case 'arrowup': case '+': return tv.channelUp();
+    case 'arrowleft': case 'arrowdown': case '-': return tv.channelDown();
+    case 'x': return tv.setMode('mix');
+    case 'u': return tv.toggleMute();
+    case 'i': tv.setMode('text'); return goto(100);
+    case 't': case 'escape': return tv.setMode('text');
+  }
+}
+
 function handleKey(key) {
+  if (tv.getMode() === 'tv') return handleTvKey(key);
   if (/^\d$/.test(key)) return digit(key);
   switch (key.toLowerCase()) {
+    case 'v': return tv.setMode('tv');
+    case 't': return tv.setMode('text');
+    case 'x': return tv.setMode(tv.getMode() === 'mix' ? 'text' : 'mix');
+    case 'u': return tv.toggleMute();
     case 'arrowright': case '+': return step(1);
     case 'arrowleft': case '-': return step(-1);
     case 'arrowdown': return changeSub(1);
@@ -328,6 +347,8 @@ fit();
 
 setInterval(drawHeader, 1000);
 setInterval(loadIndex, 60_000);
+setInterval(tv.loadChannels, 5 * 60_000);
+tv.loadChannels();
 await loadIndex();
 const start = location.pathname.match(/^\/(\d{3})$/)?.[1] ?? 100;
 goto(start, { instant: true });

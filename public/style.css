@@ -115,6 +115,30 @@ main {
 .fg-cyan { color: var(--cyan); } .bg-cyan { background: var(--cyan); }
 .fg-white { color: var(--white); } .bg-white { background: var(--white); }
 
+/* Live TV picture behind the teletext. Widescreen streams letterbox on the 4:3 glass. */
+.picture { position: absolute; inset: 0; visibility: hidden; }
+.picture iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
+.glass[data-mode="tv"] .picture,
+.glass[data-mode="mix"] .picture { visibility: visible; }
+.glass[data-mode="tv"] .screen { visibility: hidden; }
+/* MIX: black backgrounds turn see-through; coloured bands stay solid. */
+.glass[data-mode="mix"] .screen .bg-black { background: transparent; }
+
+/* Channel number, top left, as old sets drew it. */
+.osd {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--gap) + var(--ch));
+  left: calc(var(--gap) + var(--cw) * 2);
+  font-family: 'Bedstead', monospace;
+  font-size: calc(var(--ch) * 1.5);
+  line-height: 1;
+  color: var(--green);
+  text-shadow: 2px 2px 0 #000;
+  pointer-events: none;
+}
+.osd[hidden] { display: none; }
+
 /* Full-size comic over the screen */
 .full {
   position: absolute;
@@ -157,7 +181,10 @@ main {
 .fast .red { background: #d22; } .fast .green { background: #2b2; }
 .fast .yellow { background: #dd2; } .fast .cyan { background: #2cc; }
 .misc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.modes button { font-size: 12px; }
 .misc button { font-size: 12px; }
+.modes button.on { background: #2b6; color: #000; }
 .help { margin: 0; font-size: 11px; line-height: 1.4; color: #999; text-align: center; }
 
 @media (max-width: 700px) {

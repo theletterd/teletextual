@@ -16,6 +16,8 @@ No dependencies; needs Node 20+.
 - `←` / `→` previous / next page, `↑` / `↓` subpages, `H` holds the subpage.
 - `R` `G` `Y` `C` (or F1–F4) are the fastext buttons on the bottom row.
 - `S` toggles the scanlines.
+- `V` TV, `T` text, `X` mix (text over the picture), `U` mute. In TV mode
+  number keys change channel (1–9, then 0) and arrows go up and down.
 - Click any headline or page number. "Full story at source" opens the article.
 - Pages deep-link: `/300` opens Sport.
 
@@ -40,6 +42,7 @@ No dependencies; needs Node 20+.
 | 600 | Entertainment |
 | 650 | Comics |
 | 670–682 | Horoscopes (Astrology.com) |
+| 690 | On TV: channel guide |
 
 Each section's stories are numbered from the page after its index.
 
@@ -50,6 +53,16 @@ big mosaic font, so A–Z, 0–9, space and `-`), a background colour from the
 teletext palette, and one or more RSS/Atom feeds, merged newest-first.
 Weather is grouped into regions, each with its own page, units (`C` or `F`)
 and lat/lon cities. Feeds refresh every `refreshMinutes`.
+
+## TV
+
+The remote's TV, Text and Mix buttons work like a real teletext set: TV shows
+a live YouTube stream, Text shows the pages (the sound keeps playing), and Mix
+lays the pages over the picture with their black background see-through.
+Channels are YouTube channel IDs under `tv` in `sources.json`. The server
+looks up each channel's current live video on every refresh, because stream
+IDs change when a broadcaster restarts. BBC News's YouTube stream only plays
+in the US.
 
 ## Comics
 
@@ -73,5 +86,7 @@ public-domain recreation of the SAA5050 teletext character generator, in
 - `lib/feeds.js` – RSS/Atom and Open-Meteo fetching
 - `lib/pages.js` – page layouts (index, section, story, weather, status)
 - `lib/font.js` – 3×5 pixel font rendered as sextant mosaics
+- `lib/tv.js` – finds each YouTube channel's current live stream
 - `public/mosaic.js` – converts images to teletext mosaic rows
+- `public/tv.js` – the TV picture, channel changes and TEXT / TV / MIX
 - `public/` – the TV, the remote, and the renderer

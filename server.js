@@ -5,13 +5,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchFeed, fetchWeather } from './lib/feeds.js';
-import { sectionPages, indexPage, weatherPages, statusPage, comicPages, horoscopePages } from './lib/pages.js';
+import { resolveLive } from './lib/tv.js';
+import { sectionPages, indexPage, weatherPages, statusPage, comicPages, horoscopePages, tvGuidePage } from './lib/pages.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3100;
 const config = JSON.parse(await fs.readFile(path.join(ROOT, 'sources.json'), 'utf8'));
 
 let pages = new Map();
+let tvChannels = [];          // [{ name, videoId, title, note }]
+const lastLive = new Map();   // youtube channel -> last good { videoId, title }
 let comicImages = new Set(); // image URLs the proxy may fetch
 const imageCache = new Map(); // url -> Promise<{ type, body }>
 
@@ -92,6 +95,21 @@ async function refresh() {
     }
     extras.push({ name: 'Horoscopes', page: h.page });
   }
+  if (config.tv) {
+    const channels = await Promise.all(config.tv.channels.map(async (ch) => {
+      try {
+        lastLive.set(ch.youtube, await resolveLive(ch.youtube));
+      } catch (err) {
+        // Keep the previous stream if one lookup fails; it's probably still on.
+        status.push({ name: `TV ${ch.name}`, error: err.message, at: now });
+      }
+      return { name: ch.name, note: ch.note, ...lastLive.get(ch.youtube) };
+    }));
+    tvChannels = channels;
+    add(tvGuidePage(config.tv.page, channels));
+    extras.push({ name: 'On TV', page: config.tv.page });
+  }
+
   for (const region of config.weather?.regions ?? []) {
     const label = `Weather ${region.name}`;
     try {
@@ -146,6 +164,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 502, { error: err.message });
     }
   }
+  if (url.pathname === '/api/tv') return json(res, 200, tvChannels);
   const m = url.pathname.match(/^\/api\/page\/(\d{3})$/);
   if (m) {
     const page = pages.get(Number(m[1]));

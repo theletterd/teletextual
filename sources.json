@@ -126,6 +126,21 @@
     "name": "Astrology.com",
     "url": "https://www.astrology.com/horoscopes/daily-horoscope.rss"
   },
+  "tv": {
+    "page": 690,
+    "channels": [
+      { "name": "BBC News", "youtube": "UC16niRr50-MSBwiO3YDb3RA", "note": "US only" },
+      { "name": "Sky News", "youtube": "UCoMdktPbSTixAyNGwb-UYkQ" },
+      { "name": "Al Jazeera", "youtube": "UCNye-wNBqNL5ZzHSJj3l8Bg" },
+      { "name": "ABC News", "youtube": "UCBi2mrWuNuyYy4gbM6fU18Q" },
+      { "name": "DW News", "youtube": "UCknLrEdhRCp1aegoMqRaCZg" },
+      { "name": "France 24", "youtube": "UCQfwfsi5VrQ8yKZ-UWmAEFg" },
+      { "name": "Bloomberg", "youtube": "UCIALMKvObZNtJ6AmdCLP7Lg" },
+      { "name": "Euronews", "youtube": "UCSrZ3UV4jOidv8ppoVuvW9Q" },
+      { "name": "NASA ISS", "youtube": "UCLA_DiR1FfKNvjuUpBHmylQ" },
+      { "name": "Lofi Girl", "youtube": "UCSJ4gkVC6NrvII8umztf0Ow" }
+    ]
+  },
   "weather": {
     "regions": [
       {

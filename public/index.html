@@ -9,9 +9,11 @@
 <body>
   <main>
     <div class="tv">
-      <div class="glass">
+      <div class="glass" data-mode="text">
+        <div class="picture"><div id="player"></div></div>
         <div id="screen" class="screen" aria-live="polite"></div>
         <div id="full" class="full" hidden><img alt="Comic at full size"></div>
+        <div id="osd" class="osd" hidden></div>
       </div>
     </div>
     <div class="remote" aria-label="Remote control">
@@ -27,12 +29,18 @@
         <button data-key="y" class="yellow" title="Yellow (Y)"></button>
         <button data-key="c" class="cyan" title="Cyan (C)"></button>
       </div>
+      <div class="modes">
+        <button data-key="v" title="TV picture (V)">TV</button>
+        <button data-key="t" class="on" title="Teletext (T)">Text</button>
+        <button data-key="x" title="Text over the picture (X)">Mix</button>
+        <button data-key="u" title="Mute (U)">Mute</button>
+      </div>
       <div class="misc">
         <button data-key="i">Index</button>
         <button data-key="h" id="hold">Hold</button>
         <button data-key="ArrowDown" title="Next subpage">Sub</button>
       </div>
-      <p class="help">Type a page number. Arrows change page. R G Y C for fastext, H to hold, S for scanlines.</p>
+      <p class="help">Type a page number. Arrows change page. R G Y C for fastext, H to hold, S for scanlines. V, T, X for TV, text and mix; U mutes. In TV mode, numbers change channel.</p>
     </div>
   </main>
   <script type="module" src="/app.js"></script>
