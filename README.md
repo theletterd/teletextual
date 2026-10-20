@@ -24,6 +24,15 @@ No dependencies; needs Node 20+.
 - Click any headline or page number. "Full story at source" opens the article.
 - Pages deep-link: `/300` opens Sport.
 
+## On phones
+
+In portrait the TV runs full width with a compact remote below it; in
+landscape the TV fills the screen and the remote slides out from the button
+in the bottom right. Swipe the screen left or right to change page (channel
+on the TV), up or down for subpages (channel on the TV). On iPhones the ring
+/silent switch mutes the generated sounds (tone, chimes, splats) but not the
+TV channels.
+
 ## Pages
 
 | Page | Section |

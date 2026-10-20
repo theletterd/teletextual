@@ -115,7 +115,10 @@ export function splat() {
   burst(0.32, 'lowpass', 2600, 220, 0.09, 0.01);      // paint hits
 }
 
+// The thump of a set coming on: a low knock with some mid-range body so
+// small laptop and phone speakers, which can't play deep bass, still carry it.
 export function thump() {
-  burst(0.18, 'lowpass', 300, 60, 0.12);
-  note(55, 0, 0.25, 0.06);
+  burst(0.22, 'lowpass', 900, 70, 0.45);
+  note(90, 0, 0.3, 0.3);
+  note(180, 0, 0.18, 0.12);
 }

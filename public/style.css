@@ -38,6 +38,7 @@ main {
   align-content: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 16px;
 }
 
@@ -238,6 +239,7 @@ main {
   box-shadow: 0 14px 40px #000a, inset 0 1px 0 #fff2;
 }
 .remote button {
+  touch-action: manipulation;
   font: 600 15px system-ui, sans-serif;
   color: #eee;
   background: #3d3d42;
@@ -271,8 +273,61 @@ main {
 .misc button { font-size: 12px; }
 .modes button.on { background: #2b6; color: #000; }
 
-@media (max-width: 700px) {
-  main { gap: 16px; padding: 16px 16px 24px; align-content: start; }
-  .tv { padding: 10px; border-radius: 16px; }
-  .remote { width: 100%; max-width: 360px; border-radius: 22px; padding: 18px; }
+/* Phones. The layout is chosen in app.js (body[data-layout]). */
+.remote-toggle { display: none; }
+body:not([data-layout="desktop"]) main { gap: 10px; padding: 8px; }
+body:not([data-layout="desktop"]) .tv { padding: 6px; border-radius: 12px; }
+body:not([data-layout="desktop"]) .glass { border-radius: 10px / 12px; touch-action: none; }
+
+/* Portrait: a compact two-column remote, number pad on the left. */
+body[data-layout="portrait"] main { align-content: start; }
+body:not([data-layout="desktop"]) .remote {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 20px;
+  padding: 12px;
+  gap: 8px;
+  grid-template-columns: 1.25fr 1fr;
+  grid-template-areas: "pad top" "pad fast" "pad modes" "pad misc";
+  align-items: center;
 }
+body:not([data-layout="desktop"]) .remote button { padding: 8px 0; font-size: 14px; }
+body:not([data-layout="desktop"]) .pad { grid-area: pad; gap: 6px; }
+body:not([data-layout="desktop"]) .top { grid-area: top; }
+body:not([data-layout="desktop"]) .fast { grid-area: fast; gap: 6px; }
+body:not([data-layout="desktop"]) .modes { grid-area: modes; grid-template-columns: repeat(2, 1fr); }
+body:not([data-layout="desktop"]) .misc { grid-area: misc; gap: 6px; }
+body:not([data-layout="desktop"]) .modes button,
+body:not([data-layout="desktop"]) .misc button { font-size: 12px; padding: 7px 0; }
+body:not([data-layout="desktop"]) .remote .power { width: 34px; height: 34px; }
+body:not([data-layout="desktop"]) .fast button { height: 18px; }
+
+/* Landscape: the TV fills the screen; the remote slides in from the right. */
+body[data-layout="landscape"] main { padding: 8px; }
+body[data-layout="landscape"] .remote {
+  position: fixed;
+  z-index: 10;
+  top: 50%;
+  right: 8px;
+  width: 300px;
+  transform: translate(calc(100% + 16px), -50%);
+  transition: transform 0.3s ease;
+}
+body[data-layout="landscape"] .remote.open { transform: translate(0, -50%); }
+body[data-layout="landscape"] .remote-toggle {
+  display: grid;
+  place-items: center;
+  position: fixed;
+  z-index: 11;
+  right: 10px;
+  bottom: 10px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  color: #eee;
+  background: rgba(45, 45, 50, 0.85);
+  box-shadow: 0 4px 14px #0008;
+  touch-action: manipulation;
+}
+body[data-layout="landscape"] .remote-toggle[aria-expanded="true"] { background: #2b6; color: #000; }

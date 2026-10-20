@@ -375,7 +375,7 @@ document.querySelector('.remote').addEventListener('click', (e) => {
 full.addEventListener('click', closeFull);
 
 screen.addEventListener('click', (e) => {
-  if (!poweredOn) return;
+  if (!poweredOn || swiped) return;
   const link = e.target.closest('.cell')?.dataset.link;
   if (!link) return;
   if (link === 'full:') openFull();
@@ -385,18 +385,80 @@ screen.addEventListener('click', (e) => {
 
 // --- sizing --------------------------------------------------------------
 
-// Whole-pixel cells (width even, height a multiple of 3) so mosaics and
-// backgrounds butt together without seams.
-function fit() {
-  const remoteBeside = window.innerWidth > 700;
-  const availW = window.innerWidth - (remoteBeside ? 300 : 32) - 44;
-  const availH = window.innerHeight - (remoteBeside ? 80 : 360);
-  const third = Math.max(4, Math.min(Math.floor(availH / 26.25 / 3), Math.floor(availW / 42 / 2.5)));
-  const ch = third * 3;
-  const cw = 2 * Math.round((ch * 0.833) / 2);
-  document.documentElement.style.setProperty('--cw', `${cw}px`);
-  document.documentElement.style.setProperty('--ch', `${ch}px`);
+// Three layouts: desktop (remote beside the TV), phone portrait (TV above a
+// compact remote) and phone landscape (TV fills the screen, remote in a
+// pull-out drawer).
+// Measured from the page itself: on phones innerWidth grows if anything
+// overflows (the browser zooms out), which would feed back into the sizing.
+const viewport = () => [document.documentElement.clientWidth, document.documentElement.clientHeight];
+
+function layout() {
+  const [w, h] = viewport();
+  if (w > 700 && h > 500) return 'desktop';
+  return w > h ? 'landscape' : 'portrait';
 }
+
+function fit() {
+  const mode = layout();
+  const [vw, vh] = viewport();
+  document.body.dataset.layout = mode;
+  const root = document.documentElement.style;
+  if (mode === 'desktop') {
+    // Whole-pixel cells (width even, height a multiple of 3) so mosaics and
+    // backgrounds butt together without seams.
+    const availW = vw - 300 - 44;
+    const availH = vh - 80;
+    const third = Math.max(4, Math.min(Math.floor(availH / 26.25 / 3), Math.floor(availW / 42 / 2.5)));
+    const ch = third * 3;
+    root.setProperty('--ch', `${ch}px`);
+    root.setProperty('--cw', `${2 * Math.round((ch * 0.833) / 2)}px`);
+    root.setProperty('--gap', '16px');
+    return;
+  }
+  // Phones: every pixel counts, so cells take whatever size fills the space.
+  const gap = 8, frame = 2 * (8 + 6 + gap);  // page margin, bezel and gap, both sides
+  const availW = vw - frame;
+  const availH = (mode === 'landscape' ? vh : vh - 300) - frame;
+  const cw = Math.min(availW / 40, (availH / 25) * 0.833);
+  root.setProperty('--cw', `${cw.toFixed(2)}px`);
+  root.setProperty('--ch', `${(cw / 0.833).toFixed(2)}px`);
+  root.setProperty('--gap', `${gap}px`);
+}
+// The landscape drawer: the toggle opens and closes it; touching the TV
+// puts the remote down.
+const remote = document.querySelector('.remote');
+const remoteToggle = document.querySelector('.remote-toggle');
+function setRemote(open) {
+  remote.classList.toggle('open', open);
+  remoteToggle.setAttribute('aria-expanded', String(open));
+}
+remoteToggle.addEventListener('click', () => setRemote(!remote.classList.contains('open')));
+glass.addEventListener('pointerdown', () => setRemote(false));
+
+// Swipes on the screen: left and right step pages (channels on the TV);
+// up and down step subpages in text, channels on the TV. A swipe doesn't
+// also count as a tap on a link.
+let swipeStart = null;
+let swiped = false;
+glass.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  swipeStart = { x: t.clientX, y: t.clientY, at: Date.now() };
+  swiped = false;
+}, { passive: true });
+glass.addEventListener('touchend', (e) => {
+  if (!swipeStart) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - swipeStart.x, dy = t.clientY - swipeStart.y;
+  const quick = Date.now() - swipeStart.at < 700;
+  swipeStart = null;
+  if (!quick || Math.max(Math.abs(dx), Math.abs(dy)) < 40) return;
+  swiped = true;
+  const onTv = tv.getMode() === 'tv';
+  if (Math.abs(dx) > Math.abs(dy)) handleKey(dx < 0 ? 'ArrowRight' : 'ArrowLeft');
+  else if (onTv) handleKey(dy < 0 ? 'ArrowUp' : 'ArrowDown');
+  else handleKey(dy < 0 ? 'ArrowDown' : 'ArrowUp');
+}, { passive: true });
+
 window.addEventListener('resize', fit);
 fit();
 
