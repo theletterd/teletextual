@@ -85,3 +85,37 @@ export function chime() {
 export function pip(long = false) {
   note(1000, 0, long ? 0.5 : 0.1, 0.05, 'sine', true);
 }
+
+// Filtered noise bursts: a balloon's pop, a wet splat, a set's power thump.
+let noiseBuffer = null;
+function burst(length, type, from, to, level, at = 0) {
+  if (!ctx || muted) return;
+  if (!noiseBuffer) {
+    noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = type;
+  const t = ctx.currentTime + at;
+  filter.frequency.setValueAtTime(from, t);
+  filter.frequency.exponentialRampToValueAtTime(to, t + length);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(level, t);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + length);
+  src.connect(filter).connect(env).connect(ctx.destination);
+  src.start(t);
+  src.stop(t + length + 0.05);
+}
+
+export function splat() {
+  burst(0.04, 'highpass', 3500, 2500, 0.05);           // the balloon pops
+  burst(0.32, 'lowpass', 2600, 220, 0.09, 0.01);      // paint hits
+}
+
+export function thump() {
+  burst(0.18, 'lowpass', 300, 60, 0.12);
+  note(55, 0, 0.25, 0.06);
+}

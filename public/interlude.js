@@ -127,81 +127,414 @@ const mosaic = {
   },
 };
 
-// --- Paint: balloons fly in and splat the number ---------------------------
+// --- Paint: balloons burst on the number, lit as wet paint ---------------
+// Splats, drips and droplets are drawn into a colour layer and a thickness
+// layer. A WebGL pass then lights them: the thickness gives each point a
+// slope, so paint ridges catch the light and wet surfaces shine. The
+// numeral gets a bevel and a cast shadow the same way.
 
 const PAINT = ['#e8202a', '#1f6fd6', '#f4c20d', '#22a04b', '#9b2fc2', '#ff7a00'];
+const GROW_MS = 140;     // a splat spreading on impact
+const GRAVITY = 0.0016;  // px per ms per ms
 
-function splat(ctx, x, y, r, colour) {
-  ctx.fillStyle = colour;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-  for (let i = 0; i < 14; i++) {
-    const a = rand(0, Math.PI * 2), d = rand(r * 0.6, r * 1.9), dr = rand(r * 0.08, r * 0.3);
-    ctx.beginPath();
-    ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, dr, 0, Math.PI * 2);
-    ctx.fill();
+// Two passes of a separable box blur over one channel.
+function blur(src, r) {
+  let a = Float32Array.from(src);
+  const b = new Float32Array(W * H);
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 0; y < H; y++) {
+      const row = y * W;
+      let sum = 0;
+      for (let x = -r; x <= r; x++) sum += a[row + Math.min(W - 1, Math.max(0, x))];
+      for (let x = 0; x < W; x++) {
+        b[row + x] = sum / (2 * r + 1);
+        sum += a[row + Math.min(W - 1, x + r + 1)] - a[row + Math.max(0, x - r)];
+      }
+    }
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += b[Math.min(H - 1, Math.max(0, y)) * W + x];
+      for (let y = 0; y < H; y++) {
+        a[y * W + x] = sum / (2 * r + 1);
+        sum += b[Math.min(H - 1, y + r + 1) * W + x] - b[Math.max(0, y - r) * W + x];
+      }
+    }
   }
+  return a;
+}
+
+const VERTEX = `
+attribute vec2 pos;
+varying vec2 uv;
+void main() {
+  uv = vec2(pos.x * 0.5 + 0.5, 0.5 - pos.y * 0.5);
+  gl_Position = vec4(pos, 0.0, 1.0);
+}`;
+
+const FRAGMENT = `
+precision mediump float;
+varying vec2 uv;
+uniform sampler2D paint;   // rgba colour
+uniform sampler2D thick;   // r: paint thickness
+uniform sampler2D form;    // r: numeral bevel, g: numeral mask, b: cast shadow
+uniform vec2 texel;
+float height(vec2 p) {
+  return texture2D(form, p).r * 0.55 + texture2D(thick, p).r * 0.9;
+}
+void main() {
+  vec4 f = texture2D(form, uv);
+  vec4 c = texture2D(paint, uv);
+  vec3 wall = mix(vec3(0.95, 0.93, 0.89), vec3(0.79, 0.75, 0.69), uv.y);
+  wall *= 1.0 - 0.38 * f.b * (1.0 - f.g);
+  vec3 base = mix(wall, vec3(0.97, 0.97, 0.96), f.g);
+  vec3 colour = mix(base, c.rgb, c.a);
+  float dx = height(uv + vec2(texel.x, 0.0)) - height(uv - vec2(texel.x, 0.0));
+  float dy = height(uv + vec2(0.0, texel.y)) - height(uv - vec2(0.0, texel.y));
+  vec3 n = normalize(vec3(-dx * 7.0, dy * 7.0, 1.0));
+  vec3 light = normalize(vec3(-0.45, 0.55, 0.7));
+  float diffuse = 0.72 + 0.4 * dot(n, light);
+  float gloss = 0.12 + 0.88 * c.a;
+  float spec = pow(max(dot(n, normalize(light + vec3(0.0, 0.0, 1.0))), 0.0), 70.0) * gloss;
+  gl_FragColor = vec4(colour * diffuse + spec * 0.85, 1.0);
+}`;
+
+// One lighting pass, shared by every paint ident (browsers allow only a few
+// WebGL contexts). Null where WebGL isn't available.
+let lighting;
+function getLighting() {
+  if (lighting !== undefined) return lighting;
+  lighting = null;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+  if (!gl) return null;
+  const shader = (type, src) => {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    return sh;
+  };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, shader(gl.VERTEX_SHADER, VERTEX));
+  gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FRAGMENT));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
+  gl.useProgram(prog);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'pos');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  gl.uniform2f(gl.getUniformLocation(prog, 'texel'), 1.5 / W, 1.5 / H);
+  const textures = ['paint', 'thick', 'form'].map((name, i) => {
+    const tex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + i);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    for (const p of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.uniform1i(gl.getUniformLocation(prog, name), i);
+    return tex;
+  });
+  const upload = (i, source) => {
+    gl.activeTexture(gl.TEXTURE0 + i);
+    gl.bindTexture(gl.TEXTURE_2D, textures[i]);
+    if (source instanceof Uint8Array) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+  };
+  lighting = {
+    canvas,
+    setForm: (data) => upload(2, data),
+    render(paintLayer, thickLayer) {
+      upload(0, paintLayer);
+      upload(1, thickLayer);
+      gl.viewport(0, 0, W, H);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    },
+  };
+  return lighting;
+}
+
+// A splat's outline: a wobbly blob with a few long fingers.
+function blobShape() {
+  return {
+    waves: Array.from({ length: 6 }, (_, k) => ({ k: k + 2, a: rand(0.02, 0.1) / (k + 1) * 3, ph: rand(0, Math.PI * 2) })),
+    fingers: Array.from({ length: Math.floor(rand(5, 10)) }, () => ({ at: rand(0, Math.PI * 2), w: rand(0.06, 0.16), len: rand(0.4, 1.2) })),
+  };
+}
+
+function blobRadius(shape, angle) {
+  let r = 1;
+  for (const w of shape.waves) r += w.a * Math.sin(w.k * angle + w.ph);
+  for (const f of shape.fingers) {
+    let d = Math.abs(angle - f.at) % (Math.PI * 2);
+    if (d > Math.PI) d = Math.PI * 2 - d;
+    r += f.len * Math.exp(-((d / f.w) ** 2));
+  }
+  return r;
+}
+
+function blobPath(c, x, y, r, shape) {
+  c.beginPath();
+  for (let i = 0; i <= 96; i++) {
+    const a = (i / 96) * Math.PI * 2, rr = r * blobRadius(shape, a);
+    i ? c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : c.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  c.closePath();
+}
+
+// Teardrops thrown off the end of each finger.
+function teardrops(c, x, y, r, shape, fill) {
+  c.fillStyle = fill;
+  for (const f of shape.fingers) {
+    for (let j = 1; j <= 3; j++) {
+      const d = r * (1 + f.len + 0.22 * j), size = (r * 0.11) / j;
+      c.beginPath();
+      c.ellipse(x + Math.cos(f.at) * d, y + Math.sin(f.at) * d, size * 1.7, size, f.at, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+}
+
+function insideNumber(s, x, y) {
+  const xi = Math.round(x), yi = Math.round(y);
+  return xi >= 0 && yi >= 0 && xi < W && yi < H && s.inside[yi * W + xi] > 128;
 }
 
 const paint = {
   setup(info) {
     const mask = numberMask(String(info.number), 560);
-    const layer = document.createElement('canvas');
-    layer.width = W;
-    layer.height = H;
-    const shots = Array.from({ length: 14 }, (_, i) => {
-      const angle = rand(0, Math.PI * 2);
+    const alpha = mask.getContext('2d').getImageData(0, 0, W, H).data;
+    const inside = new Uint8Array(W * H);
+    const m = new Float32Array(W * H);
+    for (let i = 0; i < W * H; i++) { inside[i] = alpha[i * 4 + 3]; m[i] = alpha[i * 4 + 3] / 255; }
+
+    const layer = () => {
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    };
+    const colour = layer(), thick = layer(), tmp = layer();
+    const tctx = thick.getContext('2d');
+    tctx.fillStyle = '#000';
+    tctx.fillRect(0, 0, W, H);
+
+    const light = getLighting();
+    if (light) {
+      // The numeral's bevel (a softened edge) and the shadow it casts.
+      const bevel = blur(m, 7), soft = blur(m, 16);
+      const form = new Uint8Array(W * H * 4);
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = y * W + x, sx = x - 14, sy = y - 20;
+          form[i * 4] = m[i] ? bevel[i] * 255 : 0;
+          form[i * 4 + 1] = m[i] * 255;
+          form[i * 4 + 2] = sx >= 0 && sy >= 0 ? soft[sy * W + sx] * 255 : 0;
+          form[i * 4 + 3] = 255;
+        }
+      }
+      light.setForm(form);
+    }
+
+    // Each balloon aims at a point on the numeral, working across it in
+    // bands so thin digits get their share.
+    const target = (band) => {
+      for (let tries = 0; tries < 200; tries++) {
+        const x = W * (0.15 + 0.175 * band) + rand(0, W * 0.175), y = rand(H * 0.12, H * 0.78);
+        if (insideNumber({ inside }, x, y)) return [x, y];
+      }
+      return [W / 2, H * 0.44];
+    };
+    const shots = Array.from({ length: 12 }, (_, i) => {
+      const [x, y] = target(i % 4);
+      // Lobbed in from below or the sides, by throwers just out of shot.
+      const side = Math.floor(rand(0, 3));
+      const fromX = side === 0 ? -80 : side === 1 ? W + 80 : rand(W * 0.1, W * 0.9);
+      const fromY = side === 2 ? H + 80 : rand(H * 0.55, H + 60);
+      const flight = rand(850, 1150);
+      // It rises above the target, then drops onto it. Pick how far above,
+      // then the gravity and launch speed that fit the flight time.
+      const below = fromY - y, apex = Math.max(rand(80, 200), 60 - below);
+      const g = (2 * (Math.sqrt(below + apex) + Math.sqrt(apex)) ** 2) / flight ** 2;
       return {
-        hit: 0.06 + i * 0.04,
-        x: rand(W * 0.3, W * 0.7), y: rand(H * 0.25, H * 0.62),
-        fromX: W / 2 + Math.cos(angle) * W, fromY: H / 2 + Math.sin(angle) * H,
-        r: rand(80, 140),
+        hit: 1200 + i * 380 + rand(-80, 80),
+        x, y, fromX, fromY, flight, g,
+        vy0: -Math.sqrt(2 * g * (below + apex)),
+        r: rand(38, 70),
         colour: PAINT[i % PAINT.length],
-        done: false,
+        shape: blobShape(),
+        landed: false,
+        grown: false,
       };
     });
-    return { mask, layer, shots, tmp: document.createElement('canvas') };
+    return { mask, inside, colour, thick, tmp, light, shots, drops: [], drips: [], scraps: [], last: 0 };
   },
+
   draw(ctx, p, t, info, s) {
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#efece6');
-    bg.addColorStop(1, '#cfc8bc');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+    const now = p * IDENT_MS;
+    const dt = clamp(now - s.last, 0, 50);
+    s.last = now;
+    const cctx = s.colour.getContext('2d'), hctx = s.thick.getContext('2d'), tmp = s.tmp.getContext('2d');
 
-    // The white numeral with a soft shadow.
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 14;
-    ctx.drawImage(s.mask, 0, 0);
-    ctx.restore();
+    // Stamp paint into both layers; a splat body only sticks to the numeral.
+    const stamp = (drawShape, fill, clipToNumber, thickness) => {
+      for (const [target, style, mode] of [[cctx, fill, 'source-over'], [hctx, `rgba(255,255,255,${thickness})`, 'lighten']]) {
+        if (clipToNumber) {
+          tmp.globalCompositeOperation = 'source-over';
+          tmp.clearRect(0, 0, W, H);
+          drawShape(tmp, style);
+          tmp.globalCompositeOperation = 'destination-in';
+          tmp.drawImage(s.mask, 0, 0);
+          target.globalCompositeOperation = mode;
+          target.drawImage(s.tmp, 0, 0);
+        } else {
+          target.globalCompositeOperation = mode;
+          drawShape(target, style);
+        }
+        target.globalCompositeOperation = 'source-over';
+      }
+    };
 
-    const lctx = s.layer.getContext('2d');
     for (const shot of s.shots) {
-      if (p < shot.hit) {
-        // Balloon on its way in.
-        const k = clamp(1 - (shot.hit - p) / 0.12);
-        if (!k) continue;
-        const bx = shot.fromX + (shot.x - shot.fromX) * k, by = shot.fromY + (shot.y - shot.fromY) * k;
-        ctx.fillStyle = shot.colour;
-        ctx.beginPath();
-        ctx.ellipse(bx, by, 26, 32, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (!shot.done) {
-        splat(lctx, shot.x, shot.y, shot.r, shot.colour);
-        shot.done = true;
+      if (now < shot.hit) continue;
+      if (!shot.landed) {
+        shot.landed = true;
+        sound.splat();
+        const away = Math.atan2(shot.vy0 + shot.g * shot.flight, (shot.x - shot.fromX) / shot.flight);
+        for (let i = 0; i < 16; i++) {
+          const a = away + rand(-1.6, 1.6), v = rand(0.25, 0.8);
+          s.drops.push({ x: shot.x, y: shot.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.2, life: rand(150, 450), age: 0, r: rand(2.5, 6), colour: shot.colour });
+        }
+        for (let i = 0; i < 5; i++) {
+          const a = rand(0, Math.PI * 2);
+          s.scraps.push({ x: shot.x, y: shot.y, vx: Math.cos(a) * 0.45, vy: Math.sin(a) * 0.45, spin: rand(-0.02, 0.02), rot: a, age: 0, colour: shot.colour });
+        }
+        for (let i = 0; i < Math.floor(rand(1, 4)); i++) {
+          const x = shot.x + rand(-0.6, 0.6) * shot.r, y = shot.y + rand(0.1, 0.6) * shot.r;
+          if (insideNumber(s, x, y)) s.drips.push({ x, y, v: rand(0.05, 0.11), w: rand(5, 9), len: 0, max: rand(60, 190), start: shot.hit + rand(250, 900), colour: shot.colour, done: false });
+        }
+      }
+      if (!shot.grown) {
+        const g = ease(clamp((now - shot.hit) / GROW_MS));
+        const draw = (c, style) => {
+          c.fillStyle = style;
+          blobPath(c, shot.x, shot.y, shot.r * g, shot.shape);
+          c.fill();
+          if (g > 0.6) teardrops(c, shot.x, shot.y, shot.r * g, shot.shape, style);
+        };
+        stamp(draw, shot.colour, true, 0.75);
+        if (g >= 1) shot.grown = true;
       }
     }
-    // Paint only sticks to the numeral.
-    s.tmp.width = W;
-    s.tmp.height = H;
-    const tctx = s.tmp.getContext('2d');
-    tctx.drawImage(s.layer, 0, 0);
-    tctx.globalCompositeOperation = 'destination-in';
-    tctx.drawImage(s.mask, 0, 0);
-    ctx.drawImage(s.tmp, 0, 0);
+
+    // Droplets fly, then land where they fall, wall or numeral.
+    for (const d of s.drops) {
+      if (d.age >= d.life) continue;
+      d.age += dt;
+      d.x += d.vx * dt;
+      d.vy += GRAVITY * dt;
+      d.y += d.vy * dt;
+      if (d.age >= d.life) {
+        stamp((c, style) => { c.fillStyle = style; c.beginPath(); c.arc(d.x, d.y, d.r, 0, Math.PI * 2); c.fill(); }, d.colour, false, 0.55);
+      }
+    }
+
+    // Drips run down the numeral, slowing, and end in a bead (they stop at
+    // its edge, so they don't need clipping).
+    for (const d of s.drips) {
+      if (d.done || now < d.start) continue;
+      const step = d.v * dt;
+      d.v *= 0.997 ** dt;
+      const from = d.y;
+      d.y += step;
+      d.len += step;
+      const end = d.len > d.max || d.v < 0.008 || !insideNumber(s, d.x, d.y);
+      stamp((c, style) => { c.fillStyle = style; c.fillRect(d.x - d.w / 2, from - 1, d.w, d.y - from + 2); }, d.colour, false, 0.8);
+      if (end) {
+        d.done = true;
+        stamp((c, style) => { c.fillStyle = style; c.beginPath(); c.arc(d.x, d.y, d.w * 0.8, 0, Math.PI * 2); c.fill(); }, d.colour, false, 1);
+      }
+    }
+
+    // Light it all.
+    if (s.light) {
+      s.light.render(s.colour, s.thick);
+      ctx.drawImage(s.light.canvas, 0, 0);
+    } else {
+      const bg = ctx.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0, '#efece6');
+      bg.addColorStop(1, '#cfc8bc');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.25)';
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetY = 14;
+      ctx.drawImage(s.mask, 0, 0);
+      ctx.restore();
+      ctx.drawImage(s.colour, 0, 0);
+    }
+
+    // In the air: balloons, burst rubber and droplets.
+    for (const shot of s.shots) {
+      const tau = now - (shot.hit - shot.flight);
+      if (tau <= 0 || tau >= shot.flight) continue;
+      const k = tau / shot.flight;
+      // A ballistic arc: steady sideways, rising then falling.
+      const vx = (shot.x - shot.fromX) / shot.flight, vy = shot.vy0 + shot.g * tau;
+      const x = shot.fromX + vx * tau, y = shot.fromY + shot.vy0 * tau + 0.5 * shot.g * tau * tau;
+      const speed = Math.hypot(vx, vy);
+      // Stretch with speed, a rubbery wobble, then squash on impact; it grows
+      // a touch as it comes towards us.
+      const squash = k > 0.9 ? (k - 0.9) / 0.1 : 0;
+      const stretch = 1 + Math.min(0.18, speed * 0.12) + Math.sin(tau / 55) * 0.04;
+      const near = 0.75 + 0.25 * k;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.atan2(vy, vx));
+      ctx.scale(near * stretch * (1 - squash * 0.35), (near / stretch) * (1 + squash * 0.25));
+      const g = ctx.createRadialGradient(-8, -10, 4, 0, 0, 38);
+      g.addColorStop(0, 'rgba(255,255,255,0.85)');
+      g.addColorStop(0.25, shot.colour);
+      g.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = shot.colour;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 34, 28, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = g;
+      ctx.fill();
+      poly(ctx, [[-34, 0], [-44, -6], [-44, 6]], shot.colour);
+      ctx.restore();
+    }
+    for (const sc of s.scraps) {
+      if (sc.age > 260) continue;
+      sc.age += dt;
+      sc.x += sc.vx * dt;
+      sc.y += sc.vy * dt;
+      sc.rot += sc.spin * dt;
+      ctx.save();
+      ctx.globalAlpha = 1 - sc.age / 260;
+      ctx.translate(sc.x, sc.y);
+      ctx.rotate(sc.rot);
+      ctx.strokeStyle = sc.colour;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, 1.6);
+      ctx.stroke();
+      ctx.restore();
+    }
+    for (const d of s.drops) {
+      if (d.age >= d.life) continue;
+      ctx.fillStyle = d.colour;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath();
+      ctx.arc(d.x - d.r * 0.3, d.y - d.r * 0.3, d.r * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
     caption(ctx, p, info, true);
   },
 };

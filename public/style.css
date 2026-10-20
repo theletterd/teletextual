@@ -180,6 +180,39 @@ main {
 .strap .now { color: var(--white); overflow: hidden; text-overflow: ellipsis; }
 .strap .label { color: var(--yellow); }
 
+/* Power: the picture collapses to a line and a dot, as a CRT does, and
+   warms back up the same way. */
+.glass.switching-off > * { animation: crt-off 0.45s ease-in forwards; }
+.glass.switching-on > * { animation: crt-on 0.5s ease-out; }
+/* !important: TV mode's own rule shows the picture, and off must win. */
+.glass.off > * { visibility: hidden !important; }
+.glass.off::before {
+  content: '';
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 14px 5px #fff;
+  animation: dot-fade 1.4s ease-out forwards;
+}
+@keyframes crt-off {
+  0% { transform: scale(1, 1); filter: brightness(1); }
+  55% { transform: scale(1, 0.006); filter: brightness(4); }
+  85% { transform: scale(0.03, 0.004); filter: brightness(6); }
+  100% { transform: scale(0, 0); filter: brightness(6); }
+}
+@keyframes crt-on {
+  0% { transform: scale(0.03, 0.004); filter: brightness(6); }
+  35% { transform: scale(1, 0.006); filter: brightness(4); }
+  100% { transform: scale(1, 1); filter: brightness(1); }
+}
+@keyframes dot-fade { to { opacity: 0; transform: scale(0.2); } }
+
 /* Full-size comic over the screen */
 .full {
   position: absolute;
@@ -216,6 +249,17 @@ main {
 }
 .remote button:active { transform: translateY(1px); box-shadow: none; }
 .remote button.on { background: #b33; }
+.top { display: flex; justify-content: flex-end; }
+.remote .power {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #c62828;
+  color: #fff;
+}
 .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .fast { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .fast button { height: 22px; padding: 0; border-radius: 6px; }
@@ -226,7 +270,6 @@ main {
 .modes button { font-size: 12px; }
 .misc button { font-size: 12px; }
 .modes button.on { background: #2b6; color: #000; }
-.help { margin: 0; font-size: 11px; line-height: 1.4; color: #999; text-align: center; }
 
 @media (max-width: 700px) {
   main { gap: 16px; padding: 16px 16px 24px; align-content: start; }

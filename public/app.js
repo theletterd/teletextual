@@ -2,6 +2,7 @@
 
 import { imageTiles } from './mosaic.js';
 import * as tv from './tv.js';
+import * as sound from './sound.js';
 import { listings } from './schedule.js';
 
 const COLS = 40;
@@ -307,7 +308,29 @@ function handleTvKey(key) {
   }
 }
 
+const glass = document.querySelector('.glass');
+let poweredOn = true;
+
+function togglePower() {
+  sound.unlock();
+  poweredOn = !poweredOn;
+  if (poweredOn) {
+    glass.classList.remove('off');
+    glass.classList.add('switching-on');
+    setTimeout(() => glass.classList.remove('switching-on'), 500);
+    sound.thump();
+    tv.powerOn();
+    render();
+  } else {
+    glass.classList.add('switching-off');
+    setTimeout(() => { glass.classList.replace('switching-off', 'off'); }, 450);
+    tv.powerOff();
+  }
+}
+
 function handleKey(key) {
+  if (key === 'power') return togglePower();
+  if (!poweredOn) return;
   if (tv.getMode() === 'tv') return handleTvKey(key);
   if (/^\d$/.test(key)) return digit(key);
   switch (key.toLowerCase()) {
@@ -352,6 +375,7 @@ document.querySelector('.remote').addEventListener('click', (e) => {
 full.addEventListener('click', closeFull);
 
 screen.addEventListener('click', (e) => {
+  if (!poweredOn) return;
   const link = e.target.closest('.cell')?.dataset.link;
   if (!link) return;
   if (link === 'full:') openFull();

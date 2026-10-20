@@ -12,6 +12,8 @@ No dependencies; needs Node 20+.
 
 ## Using it
 
+- The red button on the remote is the power: off collapses the picture to a
+  dot, as an old CRT did, and silences everything; on retunes.
 - Type a three-digit page number (or use the remote). `100` is the index.
 - `←` / `→` previous / next page, `↑` / `↓` subpages, `H` holds the subpage.
 - `R` `G` `Y` `C` (or F1–F4) are the fastext buttons on the bottom row.
@@ -88,7 +90,8 @@ fixed moment and has looped its programmes since, so tuning in at 18:05 drops
 you five minutes into the 18:00 programme, the same for everyone. With
 `slotMinutes`, programmes start on slot boundaries and an interlude fills the
 gap after each: idents in the spirit of BBC Two's, where the channel number
-stars in a short animation (teletext blocks stacking up, paint balloons, the
+stars in a short animation (teletext blocks stacking up, balloons of paint
+lobbed at a bevelled numeral and lit as wet paint with WebGL, the
 viewer's current weather, an oscilloscope trace, a film leader countdown, a
 starfield, or today's headlines), alternating with a clock that counts down to
 the next programme, with time pips at the end. They're drawn live in

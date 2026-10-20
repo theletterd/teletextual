@@ -31,6 +31,7 @@ let entry = '';      // channel digits typed so far
 let entryTimer = 0;
 let slotTimer = 0;
 let subtitles = false;
+let poweredOff = false;
 let onStream = false;
 let strapTimer = 0;
 let strapHide = 0;
@@ -207,6 +208,7 @@ async function playScheduled(ch, seq) {
 }
 
 async function tune(i, { quiet = false } = {}) {
+  if (poweredOff) return;
   clearTimeout(slotTimer);
   const seq = ++tuning;
   if (!channels.length) await loadChannels();
@@ -256,6 +258,23 @@ export async function setMode(next) {
     showOsd(`${channels[current]?.number ?? ''} ${channels[current]?.name.toUpperCase() ?? ''}`);
     if (onStream) planStrap(4500);
   }
+}
+
+// Power off stops every picture and sound; power on retunes, so a live
+// stream comes back at its live edge and a schedule at the right moment.
+export function powerOff() {
+  poweredOff = true;
+  ++tuning;
+  clearTimeout(slotTimer);
+  clearTimeout(entryTimer);
+  entry = '';
+  osd.hidden = true;
+  picture('none');
+}
+
+export function powerOn() {
+  poweredOff = false;
+  if (started) tune(current);
 }
 
 export const channelUp = () => { sound.unlock(); tune(current + 1); };
