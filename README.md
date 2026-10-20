@@ -67,6 +67,11 @@ looks up each channel's current live video on every refresh, because stream
 IDs change when a broadcaster restarts. BBC News's YouTube stream only plays
 in the US.
 
+While a stream is on screen in TV mode, a strap slides in at the top left:
+"You're watching X on Teletextual", shortly after tuning in and every 15
+minutes. Playlist channels add what's on now, or what's next during a
+programme's last five minutes.
+
 Channel 0 is a test card, an homage to BBC Test Card F drawn on a canvas
 (`public/testcard.js`), with a 1 kHz tone. Channels that are off air show it
 silently.

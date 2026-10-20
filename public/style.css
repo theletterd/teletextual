@@ -154,6 +154,32 @@ main {
 }
 .osd[hidden] { display: none; }
 
+/* The strap: "You're watching ..." slides in now and then, top left, clear of
+   the tickers news channels run along the bottom. */
+.strap {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--gap) + var(--ch) * 3.5);
+  left: 0;
+  max-width: calc(var(--cw) * 34);
+  padding: calc(var(--ch) * 0.45) calc(var(--cw) * 1.2) calc(var(--ch) * 0.45) calc(var(--gap) + var(--cw) * 1.5);
+  border-right: calc(var(--cw) * 0.6) solid rgba(255, 255, 0, 0.8);
+  background: rgba(0, 0, 0, 0.55);
+  text-shadow: 1px 1px 0 #000;
+  font-family: 'Bedstead', monospace;
+  font-size: calc(var(--ch) * 0.85);
+  line-height: 1.3;
+  color: var(--white);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-105%);
+  transition: transform 0.6s ease;
+}
+.strap.on { transform: none; }
+.strap .on-tt { color: var(--cyan); }
+.strap .now { color: var(--white); overflow: hidden; text-overflow: ellipsis; }
+.strap .label { color: var(--yellow); }
+
 /* Full-size comic over the screen */
 .full {
   position: absolute;

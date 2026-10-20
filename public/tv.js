@@ -14,6 +14,7 @@ const snow = document.getElementById('static');
 const interlude = document.getElementById('interlude');
 const noSignal = document.getElementById('nosignal');
 const osd = document.getElementById('osd');
+const strap = document.getElementById('strap');
 const KEYS = { text: 't', tv: 'v', mix: 'x' };
 
 let channels = [];
@@ -29,7 +30,14 @@ let tuning = 0;      // bumps on every tune so a slow stream load can't land lat
 let entry = '';      // channel digits typed so far
 let entryTimer = 0;
 let slotTimer = 0;
-let subtitles = false;   // wakes a playlist channel at its next programme
+let subtitles = false;
+let onStream = false;
+let strapTimer = 0;
+let strapHide = 0;
+
+const STRAP_SHOW_MS = 5000;
+const STRAP_EVERY_MS = 15 * 60_000;
+const STRAP_NEXT_MS = 5 * 60_000;  // "next" strap this long before a programme ends   // wakes a playlist channel at its next programme
 
 export const getMode = () => mode;
 export const getChannels = () => channels;
@@ -71,6 +79,10 @@ function showOsd(text, stay = false) {
 // clock until the next programme; `info` says which).
 function picture(kind, info) {
   if (kind !== 'stream') player?.stopVideo();
+  // Any strap on screen belongs to what was on before, so it goes at once.
+  onStream = kind === 'stream';
+  hideStrap();
+  if (onStream) planStrap(4500);
   interlude.hidden = kind !== 'interlude';
   if (kind === 'interlude') startInterlude(interlude, info); else stopInterlude();
   const showCard = kind === 'card' || kind === 'offair';
@@ -81,8 +93,61 @@ function picture(kind, info) {
   sound.play(kind === 'card' ? 'tone' : kind === 'static' ? 'hiss' : null);
 }
 
-// A playlist channel follows the clock: when a programme ends, or one won't
-// play, work out what should be on now.
+// The strap: "You're watching X on Teletextual", now and then, on whatever's
+// streaming. Playlist channels add what's on, or what's next near the end.
+const hhmm = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+function strapLine(text, className, label) {
+  const div = document.createElement('div');
+  if (className) div.className = className;
+  if (label) {
+    const span = document.createElement('span');
+    span.className = 'label';
+    span.textContent = label;
+    div.append(span, ' ');
+  }
+  div.append(text);
+  return div;
+}
+
+function showStrap() {
+  const ch = channels[current];
+  if (!ch || !onStream || mode !== 'tv') return;
+  const lines = [strapLine(`You're watching ${ch.name}`), strapLine('on Teletextual', 'on-tt')];
+  const now = ch.programmes && onAir(ch);
+  if (now && !now.interlude) {
+    const ending = now.start + now.seconds * 1000 - Date.now() < STRAP_NEXT_MS;
+    const next = ending && onAir(ch, now.end);
+    lines.push(next ? strapLine(next.title, 'now', `Next ${hhmm(next.start)}:`) : strapLine(now.title, 'now', 'Now:'));
+  }
+  strap.replaceChildren(...lines);
+  strap.classList.add('on');
+  clearTimeout(strapHide);
+  strapHide = setTimeout(() => strap.classList.remove('on'), STRAP_SHOW_MS);
+}
+
+// Every 15 minutes, or sooner if a programme's last five minutes start first.
+function nextStrapIn() {
+  let delay = STRAP_EVERY_MS;
+  const now = channels[current]?.programmes && onAir(channels[current]);
+  if (now && !now.interlude) {
+    const untilNext = now.start + now.seconds * 1000 - STRAP_NEXT_MS - Date.now();
+    if (untilNext > 10_000) delay = Math.min(delay, untilNext);
+  }
+  return delay;
+}
+
+function planStrap(delay) {
+  clearTimeout(strapTimer);
+  strapTimer = setTimeout(() => { showStrap(); planStrap(nextStrapIn()); }, delay);
+}
+
+function hideStrap() {
+  clearTimeout(strapTimer);
+  clearTimeout(strapHide);
+  strap.classList.remove('on');
+}
+
 // Captions go through the player's captions module. Turning it on and off
 // mid-video isn't in YouTube's documented API but is widely used; each new
 // video resets it, so it's reapplied whenever playback starts.
@@ -104,6 +169,8 @@ export function setSubtitles(on) {
 
 export const toggleSubtitles = () => setSubtitles(!subtitles);
 
+// A playlist channel follows the clock: when a programme ends, or one won't
+// play, work out what should be on now.
 function stateChanged(e) {
   if (e.data === window.YT.PlayerState.PLAYING) applySubtitles();
   if (e.data === window.YT.PlayerState.ENDED && channels[current]?.programmes) tune(current, { quiet: true });
@@ -183,8 +250,12 @@ export async function setMode(next) {
     document.querySelector(`.modes [data-key="${key}"]`)?.classList.toggle('on', m === next);
   }
   // Start the picture the first time it's wanted; after that it keeps running.
+  if (next !== 'tv') strap.classList.remove('on');
   if (next !== 'text' && !started) await tune(current);
-  else if (next === 'tv' && was !== 'tv') showOsd(`${channels[current]?.number ?? ''} ${channels[current]?.name.toUpperCase() ?? ''}`);
+  else if (next === 'tv' && was !== 'tv') {
+    showOsd(`${channels[current]?.number ?? ''} ${channels[current]?.name.toUpperCase() ?? ''}`);
+    if (onStream) planStrap(4500);
+  }
 }
 
 export const channelUp = () => { sound.unlock(); tune(current + 1); };
