@@ -28,7 +28,8 @@ let cardDrawn = false;
 let tuning = 0;      // bumps on every tune so a slow stream load can't land late
 let entry = '';      // channel digits typed so far
 let entryTimer = 0;
-let slotTimer = 0;   // wakes a playlist channel at its next programme
+let slotTimer = 0;
+let subtitles = false;   // wakes a playlist channel at its next programme
 
 export const getMode = () => mode;
 export const getChannels = () => channels;
@@ -82,7 +83,29 @@ function picture(kind, info) {
 
 // A playlist channel follows the clock: when a programme ends, or one won't
 // play, work out what should be on now.
+// Captions go through the player's captions module. Turning it on and off
+// mid-video isn't in YouTube's documented API but is widely used; each new
+// video resets it, so it's reapplied whenever playback starts.
+function applySubtitles() {
+  if (!player?.loadModule) return;
+  if (subtitles) {
+    player.loadModule('captions');
+    player.setOption?.('captions', 'track', { languageCode: 'en' });
+  } else {
+    player.unloadModule('captions');
+  }
+}
+
+export function setSubtitles(on) {
+  subtitles = on;
+  applySubtitles();
+  showOsd(on ? 'SUBTITLES ON' : 'SUBTITLES OFF');
+}
+
+export const toggleSubtitles = () => setSubtitles(!subtitles);
+
 function stateChanged(e) {
+  if (e.data === window.YT.PlayerState.PLAYING) applySubtitles();
   if (e.data === window.YT.PlayerState.ENDED && channels[current]?.programmes) tune(current, { quiet: true });
 }
 

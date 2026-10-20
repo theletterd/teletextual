@@ -17,7 +17,8 @@ No dependencies; needs Node 20+.
 - `R` `G` `Y` `C` (or F1–F4) are the fastext buttons on the bottom row.
 - `S` toggles the scanlines.
 - `V` TV, `T` text, `X` mix (text over the picture), `U` mute. In TV mode
-  number keys change channel (up to two digits) and arrows go up and down.
+  number keys change channel (up to two digits), arrows go up and down, and
+  Sub or `C` toggles subtitles. Page 888 also turns subtitles on, as on Ceefax.
 - Click any headline or page number. "Full story at source" opens the article.
 - Pages deep-link: `/300` opens Sport.
 
@@ -44,6 +45,7 @@ No dependencies; needs Node 20+.
 | 670–682 | Horoscopes (Astrology.com) |
 | 690 | On TV: channel guide |
 | 691 | Listings: Now and Next for playlist channels |
+| 888 | Subtitles: switches YouTube captions on and goes to the TV |
 
 Each section's stories are numbered from the page after its index.
 
@@ -81,11 +83,13 @@ fixed moment and has looped its programmes since, so tuning in at 18:05 drops
 you five minutes into the 18:00 programme, the same for everyone. With
 `slotMinutes`, programmes start on slot boundaries and an interlude fills the
 gap after each: idents in the spirit of BBC Two's, where the channel number
-stars in a short animation (teletext blocks stacking up, paint balloons, or
-the viewer's current weather), alternating with a clock that counts down to
+stars in a short animation (teletext blocks stacking up, paint balloons, the
+viewer's current weather, an oscilloscope trace, a film leader countdown, a
+starfield, or today's headlines), alternating with a clock that counts down to
 the next programme, with time pips at the end. They're drawn live in
-`public/interlude.js`. A channel can also have its own ident (`"ident":
-"bobross"` or `"taskmaster"`), which opens each of its interludes. Channel 99
+`public/interlude.js`. A channel can also have its own ident (`"ident"`: `bobross`,
+`taskmaster`, `bushtucker`, `rockhits`, `infomercial`, `lofi` or `nasa`), which
+opens each of its interludes. Channel 99
 (`"idents": true`) flips through every ident in turn, channel ones under
 their own numbers, for showing them off. Videos shorter than `minMinutes`, or that YouTube won't let
 other sites embed, are skipped. Playlists are re-read every six hours.

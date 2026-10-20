@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { fetchFeed, fetchWeather } from './lib/feeds.js';
 import { resolveLive } from './lib/tv.js';
 import { fetchPlaylist, embeddable } from './lib/playlist.js';
-import { sectionPages, indexPage, weatherPages, statusPage, comicPages, horoscopePages, tvGuidePage, listingsPage } from './lib/pages.js';
+import { sectionPages, indexPage, weatherPages, statusPage, comicPages, horoscopePages, tvGuidePage, listingsPage, subtitlesPage } from './lib/pages.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3100;
@@ -149,11 +149,13 @@ async function refresh() {
         // Keep the previous stream if one lookup fails; it's probably still on.
         status.push({ name: `TV ${ch.name}`, error: err.message, at: now });
       }
-      return { number: ch.number, name: ch.name, note: ch.note, ...lastLive.get(ch.youtube) };
+      return { number: ch.number, name: ch.name, note: ch.note, ident: ch.ident, ...lastLive.get(ch.youtube) };
     }));
     tvChannels = channels;
     add(tvGuidePage(config.tv.page, channels));
     add(listingsPage(config.tv.page + 1));
+    add(subtitlesPage(888));
+    extras.push({ name: 'Subtitles', page: 888 });
     extras.push({ name: 'On TV', page: config.tv.page });
   }
 

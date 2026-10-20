@@ -249,6 +249,11 @@ async function goto(num, { instant = false } = {}) {
   clearInterval(state.rollTimer);
   state.searching = false;
   state.current = page?.listings ? await buildListings(page) : page ?? notFound(num);
+  if (page?.subtitles) {
+    // Ceefax put subtitles on page 888: switch them on and show the TV.
+    await tv.setMode('tv');
+    tv.setSubtitles(true);
+  }
   state.sub = 0;
   restartSubTimer();
   render();
@@ -296,6 +301,7 @@ function handleTvKey(key) {
     case 'arrowleft': case 'arrowdown': case '-': return tv.channelDown();
     case 'x': return tv.setMode('mix');
     case 'u': return tv.toggleMute();
+    case 'sub': case 'c': return tv.toggleSubtitles();
     case 'i': tv.setMode('text'); return goto(100);
     case 't': case 'escape': return tv.setMode('text');
   }

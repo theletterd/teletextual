@@ -245,13 +245,7 @@ const weather = {
     nctx.fillStyle = tint;
     nctx.fillRect(0, 0, W, H);
     // Where each column of the numeral starts, so snow can settle on it.
-    const data = mask.getContext('2d').getImageData(0, 0, W, H).data;
-    const tops = [];
-    for (let x = 0; x < W; x += 4) {
-      let y = 0;
-      while (y < H && data[(y * W + x) * 4 + 3] < 128) y++;
-      tops.push(y < H ? y : null);
-    }
+    const tops = columnTops(mask);
     const count = kind === 'snow' ? 260 : kind === 'rain' || kind === 'thunder' ? 340 : 0;
     const drops = Array.from({ length: count }, () => ({ x: rand(0, W), y: rand(-H, H), v: rand(0.6, 1.2), s: rand(0, 6) }));
     const stars = Array.from({ length: 90 }, () => ({ x: rand(0, W), y: rand(0, H * 0.7), r: rand(0.6, 2), tw: rand(0, 6) }));
@@ -566,9 +560,606 @@ const taskmaster = {
   },
 };
 
+// --- Oscilloscope: a wave on a green screen settles into the number ------
+
+function numberOutline(str, height, colour) {
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const m = c.getContext('2d');
+  m.font = BIG.replace('1px', `${height}px`);
+  const scale = Math.min(1, (W * 0.8) / m.measureText(str).width);
+  m.font = BIG.replace('1px', `${Math.round(height * scale)}px`);
+  m.textAlign = 'center';
+  m.textBaseline = 'middle';
+  m.strokeStyle = colour;
+  m.lineWidth = 6;
+  m.shadowColor = colour;
+  m.shadowBlur = 18;
+  m.strokeText(str, W / 2, H * 0.44);
+  return c;
+}
+
+// The first opaque row in each 4px column of a mask, or null.
+function columnTops(mask) {
+  const data = mask.getContext('2d').getImageData(0, 0, W, H).data;
+  const tops = [];
+  for (let x = 0; x < W; x += 4) {
+    let y = 0;
+    while (y < H && data[(y * W + x) * 4 + 3] < 128) y++;
+    tops.push(y < H ? y : null);
+  }
+  return tops;
+}
+
+const oscilloscope = {
+  setup(info) {
+    const outline = numberOutline(String(info.number), 520, '#5dff7a');
+    return { outline, tops: columnTops(outline) };
+  },
+  draw(ctx, p, t, info, s) {
+    ctx.fillStyle = '#020a03';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#0b3d14';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += 64) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    // The trace: a wave that flattens out as the number is drawn.
+    const wave = 1 - clamp((p - 0.25) / 0.2);
+    if (wave) {
+      ctx.save();
+      ctx.globalAlpha = wave;
+      ctx.strokeStyle = '#5dff7a';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#5dff7a';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 4) {
+        const y = H * 0.44 + Math.sin(x / 38 + t / 140) * 90 * Math.sin(x / 300 + t / 900);
+        x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    // The number, traced left to right with a bright spot at the beam.
+    const reveal = clamp((p - 0.25) / 0.35);
+    if (reveal) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W * reveal, H);
+      ctx.clip();
+      ctx.drawImage(s.outline, 0, 0);
+      ctx.restore();
+      const col = Math.min(s.tops.length - 1, Math.floor((W * reveal) / 4));
+      const y = s.tops[col];
+      if (reveal < 1 && y != null) {
+        ctx.fillStyle = '#eaffef';
+        ctx.shadowColor = '#5dff7a';
+        ctx.shadowBlur = 25;
+        ctx.beginPath();
+        ctx.arc(W * reveal, y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+    caption(ctx, p, info);
+  },
+};
+
+// --- Film leader: 3, 2, 1 with a sweeping hand, then the number ----------
+
+const filmleader = {
+  setup(info) {
+    return { mask: numberMask(String(info.number), 520), beeped: false };
+  },
+  draw(ctx, p, t, info, s) {
+    // Jitter, as film does in the gate.
+    ctx.save();
+    ctx.translate(0, rand(-2, 2));
+    const count = Math.floor(p / 0.18);
+    if (count < 3) {
+      const local = (p % 0.18) / 0.18;
+      ctx.fillStyle = '#8c8c8c';
+      ctx.fillRect(0, -4, W, H + 8);
+      // The sweep: a darker wedge from twelve o'clock round to the hand.
+      ctx.fillStyle = '#6a6a6a';
+      ctx.beginPath();
+      ctx.moveTo(W / 2, H / 2);
+      ctx.arc(W / 2, H / 2, W, -Math.PI / 2, -Math.PI / 2 + local * Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 6;
+      for (const r of [230, 270]) { ctx.beginPath(); ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.font = BIG.replace('1px', '300px');
+      ctx.fillStyle = '#111';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(3 - count), W / 2, H / 2 + 10);
+      // The leader's beep comes on the 2.
+      if (count === 1 && !s.beeped) { s.beeped = true; sound.pip(); }
+    } else {
+      ctx.fillStyle = '#141414';
+      ctx.fillRect(0, -4, W, H + 8);
+      ctx.globalAlpha = 0.85 + Math.random() * 0.15;
+      ctx.drawImage(s.mask, 0, 0);
+      ctx.globalAlpha = 1;
+    }
+    // Grain and the odd scratch.
+    ctx.fillStyle = count < 3 ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.25)';
+    for (let i = 0; i < 260; i++) ctx.fillRect(rand(0, W), rand(0, H), 2, 2);
+    if (Math.random() < 0.3) {
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillRect(rand(0, W), 0, 1.5, H);
+    }
+    ctx.restore();
+    if (count >= 3) caption(ctx, p, info);
+  },
+};
+
+// --- Starfield: stars drift into the shape of the number ------------------
+
+const starfield = {
+  setup(info) {
+    const data = numberMask(String(info.number), 520).getContext('2d').getImageData(0, 0, W, H).data;
+    const stars = [];
+    for (let y = 0; y < H; y += 10) {
+      for (let x = 0; x < W; x += 10) {
+        if (data[(y * W + x) * 4 + 3] > 128) stars.push({ tx: x + rand(-2, 2), ty: y + rand(-2, 2), x: rand(0, W), y: rand(0, H), tw: rand(0, 6), r: rand(1.2, 2.6) });
+      }
+    }
+    const sky = Array.from({ length: 220 }, () => ({ x: rand(0, W), y: rand(0, H), tw: rand(0, 6), r: rand(0.5, 1.6) }));
+    return { stars, sky };
+  },
+  draw(ctx, p, t, info, s) {
+    ctx.fillStyle = '#01010a';
+    ctx.fillRect(0, 0, W, H);
+    for (const st of s.sky) {
+      ctx.globalAlpha = 0.4 + 0.4 * Math.sin(t / 500 + st.tw);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(st.x, st.y, st.r, st.r);
+    }
+    const k = ease(clamp((p - 0.12) / 0.45));
+    for (const st of s.stars) {
+      const x = st.x + (st.tx - st.x) * k, y = st.y + (st.ty - st.y) * k;
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t / 300 + st.tw);
+      ctx.fillStyle = k > 0.98 ? '#fff7c2' : '#fff';
+      ctx.beginPath();
+      ctx.arc(x, y, st.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    caption(ctx, p, info);
+  },
+};
+
+// --- Headlines: the number picked out from today's news, scrolling past ---
+
+let headlines = [];
+async function loadHeadlines() {
+  try {
+    const page = await (await fetch('/api/page/101')).json();
+    headlines = page.subpages.flat()
+      .map((row) => row.s.filter((seg) => seg.t && seg.fg === 'white').map((seg) => seg.t).join('').trim())
+      .filter((line) => line.length > 3);
+  } catch { /* keep any we had */ }
+}
+
+const headlinesIdent = {
+  setup(info) {
+    const pool = headlines.length ? headlines : ['TELETEXTUAL', 'THE NEWS IN FORTY COLUMNS'];
+    const rows = Array.from({ length: 22 }, (_, i) => ({
+      text: [...pool].sort(() => Math.random() - 0.5).join('  *  ').toUpperCase(),
+      speed: (i % 2 ? 1 : -1) * rand(0.04, 0.09),
+      offset: rand(0, 2000),
+    }));
+    const mask = numberMask(String(info.number), 560);
+    const shape = document.createElement('canvas');
+    shape.width = W;
+    shape.height = H;
+    const sctx = shape.getContext('2d');
+    sctx.drawImage(mask, 0, 0);
+    sctx.globalCompositeOperation = 'source-in';
+    sctx.fillStyle = '#2a3f9a';
+    sctx.fillRect(0, 0, W, H);
+    return { rows, mask, shape, layer: document.createElement('canvas') };
+  },
+  draw(ctx, p, t, info, s) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    s.layer.width = W;
+    s.layer.height = H;
+    const l = s.layer.getContext('2d');
+    l.font = `30px ${FONT}`;
+    l.textBaseline = 'top';
+    const paint = (target, colour) => {
+      target.font = `30px ${FONT}`;
+      target.textBaseline = 'top';
+      target.fillStyle = colour;
+      s.rows.forEach((row, i) => target.fillText(row.text, ((row.offset + t * row.speed) % 2000) - 2000, 8 + i * 35));
+    };
+    // A faint fill of the number's shape, then the news in dim blue over it.
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(s.shape, 0, 0);
+    ctx.globalAlpha = 1;
+    paint(ctx, '#18295e');
+    // The same text, bright, but only inside the number.
+    paint(l, ['#ff0', '#0ff', '#fff'][Math.floor(t / 900) % 3]);
+    l.globalCompositeOperation = 'destination-in';
+    l.globalAlpha = clamp(p / 0.3);
+    l.drawImage(s.mask, 0, 0);
+    ctx.drawImage(s.layer, 0, 0);
+    caption(ctx, p, info, false, true);
+  },
+};
+
+// --- Bush Tucker Man: an outback sunset, a hat, a goanna -------------------
+
+const bushtucker = {
+  setup(info) {
+    const mask = numberMask(String(info.number), 480);
+    const tops = columnTops(mask);
+    let peak = 0;
+    tops.forEach((y, i) => { if (y != null && (tops[peak] == null || y < tops[peak])) peak = i; });
+    const dark = document.createElement('canvas');
+    dark.width = W;
+    dark.height = H;
+    const d = dark.getContext('2d');
+    d.drawImage(mask, 0, 0);
+    d.globalCompositeOperation = 'source-in';
+    d.fillStyle = '#1a0d08';
+    d.fillRect(0, 0, W, H);
+    return { dark, hatX: peak * 4, hatY: tops[peak] ?? H * 0.3 };
+  },
+  draw(ctx, p, t, info, s) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+    sky.addColorStop(0, '#2b1b4f');
+    sky.addColorStop(0.55, '#c2456b');
+    sky.addColorStop(1, '#ff9a3d');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ffd36a';
+    ctx.beginPath();
+    ctx.arc(W * 0.5, H * (0.58 + p * 0.04), 150, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.drawImage(s.dark, 0, 0);
+
+    // Red earth, spinifex and a gum tree.
+    ctx.fillStyle = '#2a120a';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.7);
+    for (let x = 0; x <= W; x += 32) ctx.lineTo(x, H * 0.69 + Math.sin(x / 90) * 6);
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+    for (const x of [80, 160, 330, 610, 720, 940]) {
+      for (let k = -3; k <= 3; k++) poly(ctx, [[x + k * 5, H * 0.7], [x + k * 5 + 3, H * 0.7], [x + k * 9, H * 0.7 - 28 + Math.abs(k) * 4]], '#2a120a');
+    }
+    ctx.fillStyle = '#1d0c06';
+    ctx.fillRect(W * 0.86, H * 0.42, 14, H * 0.3);
+    for (const [dx, dy, r] of [[0, -10, 55], [-50, 10, 40], [50, 15, 42], [10, 30, 38]]) {
+      ctx.beginPath();
+      ctx.arc(W * 0.86 + 7 + dx, H * 0.38 + dy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // The slouch hat drops onto the top of the number.
+    const drop = clamp((p - 0.28) / 0.16);
+    if (drop) {
+      const y = s.hatY - 14 - (1 - bounce(drop)) * 300;
+      ctx.save();
+      ctx.translate(s.hatX, y);
+      ctx.rotate(-0.12);
+      ctx.fillStyle = '#6b4a2b';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 95, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-50, -2);
+      ctx.quadraticCurveTo(-48, -62, 0, -64);
+      ctx.quadraticCurveTo(48, -62, 50, -2);
+      ctx.fill();
+      ctx.fillStyle = '#3b2716';
+      ctx.fillRect(-49, -20, 98, 12);
+      ctx.restore();
+    }
+
+    // A goanna scuttles across.
+    const run = clamp((p - 0.48) / 0.45);
+    if (run > 0 && run < 1) {
+      // Along the horizon, so it's silhouetted against the sunset.
+      const gx = -150 + run * (W + 300), gy = H * 0.665, leg = Math.sin(t / 50) * 10;
+      ctx.fillStyle = '#120804';
+      ctx.beginPath();
+      ctx.ellipse(gx, gy, 55, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      poly(ctx, [[gx - 50, gy - 6], [gx - 50, gy + 6], [gx - 150, gy + 2]], '#120804');
+      ctx.beginPath();
+      ctx.ellipse(gx + 62, gy - 3, 18, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#120804';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(gx + 25, gy); ctx.lineTo(gx + 35 + leg, gy + 22);
+      ctx.moveTo(gx - 25, gy); ctx.lineTo(gx - 35 - leg, gy + 22);
+      ctx.stroke();
+    }
+    caption(ctx, p, info, false, true);
+  },
+};
+
+// --- Rock Hits: spotlights, VU meters, and a number on the beat ------------
+
+const rockhits = {
+  setup(info) {
+    return { mask: numberMask(String(info.number), 500), seeds: Array.from({ length: 24 }, () => rand(0, 10)) };
+  },
+  draw(ctx, p, t, info, s) {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#12051f');
+    bg.addColorStop(1, '#2a0a3a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    // Sweeping spotlights.
+    ['rgba(255,60,200,0.18)', 'rgba(60,200,255,0.18)', 'rgba(255,230,80,0.15)'].forEach((colour, i) => {
+      const a = Math.sin(t / 900 + i * 2) * 0.5;
+      const x = W * (0.2 + i * 0.3);
+      ctx.fillStyle = colour;
+      poly(ctx, [[x, -20], [x + Math.sin(a) * H - 120, H], [x + Math.sin(a) * H + 120, H]], colour);
+    });
+    // VU meters along the bottom, in teletext blocks.
+    const bars = 24, bw = W / bars, beat = (t % 500) / 500;
+    s.seeds.forEach((seed, i) => {
+      const level = 0.25 + 0.75 * Math.abs(Math.sin(t / 180 + seed) * Math.cos(t / 330 + seed * 2)) * (1 - beat * 0.5);
+      const blocks = Math.round(level * 10);
+      for (let b = 0; b < blocks; b++) {
+        ctx.fillStyle = b > 7 ? '#f00' : b > 5 ? '#ff0' : '#0f0';
+        ctx.fillRect(i * bw + 4, H - 20 - (b + 1) * 18, bw - 8, 14);
+      }
+    });
+    // The number thumps on every beat (120 bpm).
+    const pulse = 1 + 0.07 * Math.max(0, Math.cos(beat * Math.PI));
+    ctx.save();
+    ctx.translate(W / 2, H * 0.44);
+    ctx.scale(pulse, pulse);
+    ctx.translate(-W / 2, -H * 0.44);
+    ctx.shadowColor = '#ff3cc8';
+    ctx.shadowBlur = 30;
+    ctx.drawImage(s.mask, 0, 0);
+    ctx.restore();
+    caption(ctx, p, info, false, true);
+  },
+};
+
+// --- Infomercials: a starburst, a price tag, and there's more -------------
+
+const infomercial = {
+  setup() {
+    return {};
+  },
+  draw(ctx, p, t, info) {
+    const bg = ctx.createRadialGradient(W / 2, H * 0.45, 40, W / 2, H * 0.45, W * 0.7);
+    bg.addColorStop(0, '#fff36b');
+    bg.addColorStop(1, '#ff8a00');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    // A rotating starburst.
+    ctx.save();
+    ctx.translate(W / 2, H * 0.44);
+    ctx.rotate(t / 3000);
+    ctx.fillStyle = '#e8202a';
+    ctx.beginPath();
+    for (let i = 0; i < 48; i++) {
+      const a = (i / 48) * Math.PI * 2, r = i % 2 ? 190 : 260;
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.fill();
+    ctx.restore();
+    // The price tag, swinging slightly on its string.
+    const pop = bounce(clamp(p / 0.2));
+    ctx.save();
+    ctx.translate(W / 2, H * 0.44);
+    ctx.rotate(-0.12 + Math.sin(t / 400) * 0.03);
+    ctx.scale(pop, pop);
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(-170, -95); ctx.lineTo(150, -95); ctx.lineTo(210, 0); ctx.lineTo(150, 95); ctx.lineTo(-170, 95); ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(165, 0, 14, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#111';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = BIG.replace('1px', '34px');
+    ctx.fillText('ONLY', -20, -62);
+    ctx.font = BIG.replace('1px', '150px');
+    ctx.fillText(String(info.number), -45, 22);
+    ctx.font = BIG.replace('1px', '60px');
+    ctx.fillText('.99', 85, -10);
+    ctx.restore();
+    // CALL NOW!, flashing.
+    if (p > 0.15) text(ctx, 'CALL NOW!', W / 2, 70, 64, Math.floor(t / 300) % 2 ? '#e8202a' : '#1f3cff', 'center', BIG.replace('1px ', '').replace('900 ', ''));
+    // BUT WAIT, THERE'S MORE! spins in.
+    const more = clamp((p - 0.42) / 0.16);
+    if (more) {
+      ctx.save();
+      ctx.translate(W / 2, H * 0.68);
+      ctx.rotate((1 - ease(more)) * Math.PI * 4);
+      ctx.scale(ease(more), ease(more));
+      ctx.font = BIG.replace('1px', '48px');
+      ctx.fillStyle = '#1f3cff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText("BUT WAIT, THERE'S MORE!", 0, 0);
+      ctx.restore();
+    }
+    caption(ctx, p, info, false, true);
+  },
+};
+
+// --- Lofi: a rainy window, a desk lamp and a steaming mug ----------------
+
+const lofi = {
+  setup(info) {
+    const mask = numberMask(String(info.number), 360);
+    const warm = document.createElement('canvas');
+    warm.width = W;
+    warm.height = H;
+    const w = warm.getContext('2d');
+    w.drawImage(mask, 0, 0);
+    w.globalCompositeOperation = 'source-in';
+    w.fillStyle = '#ffd9a0';
+    w.fillRect(0, 0, W, H);
+    const drops = Array.from({ length: 70 }, () => ({ x: rand(W * 0.15, W * 0.85), y: rand(H * 0.06, H * 0.5), v: rand(0.02, 0.08), len: rand(8, 30) }));
+    return { warm, drops };
+  },
+  draw(ctx, p, t, info, s) {
+    ctx.fillStyle = '#161a33';
+    ctx.fillRect(0, 0, W, H);
+    // Window onto a rainy night.
+    const wx = W * 0.15, wy = H * 0.06, ww = W * 0.7, wh = H * 0.48;
+    const night = ctx.createLinearGradient(0, wy, 0, wy + wh);
+    night.addColorStop(0, '#22325f');
+    night.addColorStop(1, '#4a5a92');
+    ctx.fillStyle = night;
+    ctx.fillRect(wx, wy, ww, wh);
+    for (let i = 0; i < 14; i++) {
+      ctx.fillStyle = Math.floor(t / 1500 + i) % 5 ? '#ffd27a' : '#2a3560';
+      ctx.fillRect(wx + 30 + i * 46, wy + wh - 40 - (i % 3) * 25, 10, 12);
+    }
+    ctx.strokeStyle = 'rgba(200,215,255,0.5)';
+    ctx.lineWidth = 2;
+    for (const d of s.drops) {
+      d.y += d.v * 16;
+      if (d.y > wy + wh) d.y = wy;
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x, d.y + d.len);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#0d1022';
+    ctx.fillRect(wx + ww / 2 - 5, wy, 10, wh);
+    ctx.fillRect(wx, wy + wh / 2 - 5, ww, 10);
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = '#0d1022';
+    ctx.strokeRect(wx, wy, ww, wh);
+
+    // The number glows warm in the window.
+    ctx.save();
+    ctx.shadowColor = '#ffb050';
+    ctx.shadowBlur = 30;
+    ctx.globalAlpha = clamp(p / 0.25);
+    ctx.drawImage(s.warm, 0, -H * 0.13);
+    ctx.restore();
+
+    // Desk, lamp light and a mug with steam.
+    ctx.fillStyle = '#4a2f22';
+    ctx.fillRect(0, H * 0.6, W, H * 0.4);
+    const lamp = ctx.createRadialGradient(W * 0.15, H * 0.62, 10, W * 0.15, H * 0.62, 380);
+    lamp.addColorStop(0, 'rgba(255,190,110,0.45)');
+    lamp.addColorStop(1, 'rgba(255,190,110,0)');
+    ctx.fillStyle = lamp;
+    ctx.fillRect(0, 0, W, H);
+    const mx = W * 0.75, my = H * 0.6;
+    ctx.fillStyle = '#e9e2d6';
+    ctx.fillRect(mx - 40, my - 70, 80, 80);
+    ctx.strokeStyle = '#e9e2d6';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(mx + 45, my - 30, 20, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      for (let k = 0; k < 30; k++) {
+        const y = my - 80 - k * 4, x = mx - 20 + i * 20 + Math.sin(k / 4 + t / 400 + i) * 8;
+        k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    caption(ctx, p, info, false, true);
+  },
+};
+
+// --- NASA: the number in orbit, the space station passing ----------------
+
+const nasa = {
+  setup(info) {
+    const land = Array.from({ length: 16 }, () => ({ a: rand(0, Math.PI * 2), d: rand(0.2, 0.95), rx: rand(30, 90), ry: rand(20, 50) }));
+    const stars = Array.from({ length: 180 }, () => ({ x: rand(0, W), y: rand(0, H * 0.7), r: rand(0.6, 1.8), tw: rand(0, 6) }));
+    return { mask: numberMask(String(info.number), 420), land, stars };
+  },
+  draw(ctx, p, t, info, s) {
+    ctx.fillStyle = '#000005';
+    ctx.fillRect(0, 0, W, H);
+    for (const st of s.stars) {
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t / 600 + st.tw);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(st.x, st.y, st.r, st.r);
+    }
+    ctx.globalAlpha = 1;
+    // Earth, turning slowly below.
+    const ex = W / 2, ey = H * 1.45, er = H * 0.95;
+    ctx.save();
+    ctx.shadowColor = '#7ab8ff';
+    ctx.shadowBlur = 60;
+    const sea = ctx.createRadialGradient(ex, ey - er * 0.5, er * 0.2, ex, ey, er);
+    sea.addColorStop(0, '#2f7fe0');
+    sea.addColorStop(1, '#0a2a66');
+    ctx.fillStyle = sea;
+    ctx.beginPath();
+    ctx.arc(ex, ey, er, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(ex, ey, er, 0, Math.PI * 2);
+    ctx.clip();
+    for (const l of s.land) {
+      const a = l.a + t / 40000;
+      ctx.fillStyle = '#3d8a4a';
+      ctx.beginPath();
+      ctx.ellipse(ex + Math.cos(a) * er * l.d, ey + Math.sin(a) * er * l.d * 0.4 - er * 0.55, l.rx, l.ry, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.drawImage(s.mask, 0, -H * 0.06);
+
+    // The space station crosses on a curving orbit.
+    const k = clamp((p - 0.15) / 0.75);
+    if (k > 0 && k < 1) {
+      const x = -120 + k * (W + 240), y = H * 0.2 + Math.sin(k * Math.PI) * -40 + 60;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-0.15 + k * 0.3);
+      ctx.fillStyle = '#c9c9c9';
+      ctx.fillRect(-60, -3, 120, 6);
+      ctx.fillRect(-12, -10, 24, 20);
+      ctx.fillStyle = '#c9a23a';
+      for (const dx of [-55, -38, 38, 55]) ctx.fillRect(dx - 6, -32, 12, 64);
+      ctx.restore();
+    }
+    caption(ctx, p, info);
+  },
+};
+
 // Shared idents, then ones a channel can claim with "ident" in sources.json.
-const SHARED = ['mosaic', 'paint', 'weather'];
-const IDENTS = { mosaic, paint, weather, bobross, taskmaster };
+const SHARED = ['mosaic', 'paint', 'weather', 'oscilloscope', 'filmleader', 'starfield', 'headlines'];
+const IDENTS = {
+  mosaic, paint, weather, oscilloscope, filmleader, starfield, headlines: headlinesIdent,
+  bobross, taskmaster, bushtucker, rockhits, infomercial, lofi, nasa,
+};
 
 // --- The clock -------------------------------------------------------------
 
@@ -697,6 +1288,7 @@ export function startInterlude(canvas, info) {
     lastPip: null,
   };
   run.order = runningOrder(run.info);
+  loadHeadlines();
   if (!info.weather) loadConditions().then(() => { if (run) for (const o of run.order) o.info.weather = conditions; });
   document.fonts.load(`20px ${FONT}`).finally(() => { if (run) raf = requestAnimationFrame(frame); });
 }
