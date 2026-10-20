@@ -167,14 +167,16 @@ async function expandComic(page) {
   return page;
 }
 
-// Now and Next for playlist channels, drawn fresh each visit in local time.
+// Now and Next for playlist channels, one subpage each, drawn fresh each
+// visit in local time.
 async function buildListings(page) {
   if (!tv.getChannels().length) await tv.loadChannels();
-  const rows = [...page.subpages[0]];
+  const subpages = [];
   const hhmm = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   for (const ch of tv.getChannels().filter((c) => c.programmes?.length)) {
-    rows.push({ s: [] }, { s: [{ t: ` ${ch.number} ${ch.name.toUpperCase()}`, fg: 'cyan' }] });
-    const list = listings(ch, Date.now(), 7).filter((p, i) => !(i === 0 && p.interlude)).slice(0, 6);
+    const rows = [...page.subpages[0], { s: [] }, { s: [{ t: ` ${ch.number} ${ch.name.toUpperCase()}`, fg: 'cyan' }] }];
+    subpages.push(rows);
+    const list = listings(ch, Date.now(), 11).filter((p, i) => !(i === 0 && p.interlude)).slice(0, 10);
     list.forEach((p, i) => {
       const when = i === 0 && !p.interlude && p.start <= Date.now() ? { t: ' NOW  ', fg: 'green' } : { t: ` ${hhmm(p.start)}`, fg: 'yellow' };
       const words = p.title.split(' ');
@@ -188,7 +190,7 @@ async function buildListings(page) {
       if (lines[1]) rows.push({ s: [{ t: '       ' + (lines.length > 2 ? lines.slice(1).join(' ').slice(0, 31) + '..' : lines[1]), fg: 'white' }] });
     });
   }
-  return { ...page, subpages: [rows.slice(0, 23)] };
+  return { ...page, subpages: subpages.length ? subpages.map((rows) => rows.slice(0, 23)) : page.subpages };
 }
 
 function openFull() {

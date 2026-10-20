@@ -18,6 +18,20 @@ let tvChannels = [];          // [{ name, videoId, title, note }]
 const lastLive = new Map();   // youtube channel -> last good { videoId, title }
 const playlists = new Map();  // playlist id -> { at, programmes }
 const PLAYLIST_HOURS = 6;
+const embedCache = new Map(); // video id -> may be embedded; rarely changes
+
+// If YouTube can't be asked (rate limits, timeouts), assume the video plays:
+// the browser shows the test card for any slot YouTube then refuses.
+async function canEmbed(videoId) {
+  if (!embedCache.has(videoId)) {
+    try {
+      embedCache.set(videoId, await embeddable(videoId));
+    } catch {
+      return true; // not remembered, so it's checked again next time
+    }
+  }
+  return embedCache.get(videoId);
+}
 let comicImages = new Set();
 
 // A playlist channel's programmes: long enough videos that may be embedded,
@@ -27,9 +41,9 @@ async function playlistProgrammes(ch) {
   if (cached && Date.now() - cached.at < PLAYLIST_HOURS * 3_600_000) return cached.programmes;
   const videos = (await fetchPlaylist(ch.playlist)).filter((v) => v.seconds >= (ch.minMinutes ?? 0) * 60);
   const programmes = [];
-  for (let i = 0; i < videos.length; i += 4) {
-    const batch = videos.slice(i, i + 4);
-    const ok = await Promise.all(batch.map((v) => embeddable(v.videoId).catch(() => false)));
+  for (let i = 0; i < videos.length; i += 8) {
+    const batch = videos.slice(i, i + 8);
+    const ok = await Promise.all(batch.map((v) => canEmbed(v.videoId)));
     programmes.push(...batch.filter((_, j) => ok[j]));
   }
   playlists.set(ch.playlist, { at: Date.now(), programmes });
