@@ -43,6 +43,7 @@ No dependencies; needs Node 20+.
 | 650 | Comics |
 | 670–682 | Horoscopes (Astrology.com) |
 | 690 | On TV: channel guide |
+| 691 | Listings: Now and Next for playlist channels |
 
 Each section's stories are numbered from the page after its index.
 
@@ -73,6 +74,15 @@ digits: a single digit waits a second for a second one (`01` is channel 1),
 and a number with no channel shows static and NO SIGNAL, with a hiss. P+ and
 P- step through channels in the order they're listed.
 
+A channel can also be a YouTube playlist (`playlist`, plus optional
+`slotMinutes` and `minMinutes`). It runs to a clock-based schedule, shared by
+the server and browser in `public/schedule.js`: the channel went on air at a
+fixed moment and has looped its programmes since, so tuning in at 18:05 drops
+you five minutes into the 18:00 programme, the same for everyone. With
+`slotMinutes`, programmes start on slot boundaries and the test card fills the
+gap after each. Videos shorter than `minMinutes`, or that YouTube won't let
+other sites embed, are skipped. Playlists are re-read every six hours.
+
 ## Comics
 
 Page 650 lists the latest strips from xkcd, SMBC, Poorly Drawn Lines,
@@ -96,6 +106,7 @@ public-domain recreation of the SAA5050 teletext character generator, in
 - `lib/pages.js` – page layouts (index, section, story, weather, status)
 - `lib/font.js` – 3×5 pixel font rendered as sextant mosaics
 - `lib/tv.js` – finds each YouTube channel's current live stream
+- `lib/playlist.js` – reads a YouTube playlist's videos and lengths
 - `public/mosaic.js` – converts images to teletext mosaic rows
 - `public/tv.js` – the TV picture, channel changes and TEXT / TV / MIX
 - `public/sound.js`, `public/static.js` – test card tone, hiss and snow

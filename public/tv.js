@@ -5,6 +5,7 @@
 import { drawTestCard } from './testcard.js';
 import { startStatic, stopStatic } from './static.js';
 import * as sound from './sound.js';
+import { onAir } from './schedule.js';
 
 const glass = document.querySelector('.glass');
 const card = document.getElementById('testcard');
@@ -25,8 +26,10 @@ let cardDrawn = false;
 let tuning = 0;      // bumps on every tune so a slow stream load can't land late
 let entry = '';      // channel digits typed so far
 let entryTimer = 0;
+let slotTimer = 0;   // wakes a playlist channel at its next programme
 
 export const getMode = () => mode;
+export const getChannels = () => channels;
 
 export async function loadChannels() {
   try {
@@ -46,7 +49,7 @@ function loadPlayer() {
       width: '100%',
       height: '100%',
       playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1, iv_load_policy: 3 },
-      events: { onReady: resolve },
+      events: { onReady: resolve, onStateChange: stateChanged, onError: playbackFailed },
     });
   }));
   return ready;
@@ -72,15 +75,52 @@ function picture(kind) {
   sound.play(kind === 'card' ? 'tone' : kind === 'static' ? 'hiss' : null);
 }
 
-async function tune(i) {
+// A playlist channel follows the clock: when a programme ends, or one won't
+// play, work out what should be on now.
+function stateChanged(e) {
+  if (e.data === window.YT.PlayerState.ENDED && channels[current]?.programmes) tune(current, { quiet: true });
+}
+
+function playbackFailed() {
+  const ch = channels[current];
+  if (!ch?.programmes) return;
+  picture('offair');
+  const now = onAir(ch);
+  if (now) wakeAt(now.end);
+}
+
+function wakeAt(time) {
+  clearTimeout(slotTimer);
+  slotTimer = setTimeout(() => tune(current, { quiet: true }), Math.max(0, time - Date.now()) + 500);
+}
+
+// Plays whatever the schedule says is on now, from the right second; between
+// programmes the test card holds the slot until the next one.
+async function playScheduled(ch, seq) {
+  const now = onAir(ch);
+  if (!now) return picture('offair');
+  if (now.interlude) {
+    picture('offair');
+    return wakeAt(now.end);
+  }
+  picture('stream');
+  await loadPlayer();
+  if (seq !== tuning) return;
+  player.loadVideoById({ videoId: now.videoId, startSeconds: Math.floor(now.into) });
+  if (!muted) player.unMute();
+}
+
+async function tune(i, { quiet = false } = {}) {
+  clearTimeout(slotTimer);
   const seq = ++tuning;
   if (!channels.length) await loadChannels();
   if (!channels.length) return noSignalOn('');
   started = true;
   current = (i + channels.length) % channels.length;
   const ch = channels[current];
-  showOsd(`${ch.number} ${ch.name.toUpperCase()}`);
+  if (!quiet) showOsd(`${ch.number} ${ch.name.toUpperCase()}`);
   if (ch.testcard) return picture('card');
+  if (ch.programmes) return playScheduled(ch, seq);
   if (!ch.videoId) {
     showOsd(`${ch.number} OFF AIR`);
     return picture('offair');
@@ -93,6 +133,7 @@ async function tune(i) {
 }
 
 function noSignalOn(number) {
+  clearTimeout(slotTimer);
   ++tuning;
   started = true;
   showOsd(String(number));

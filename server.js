@@ -6,7 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchFeed, fetchWeather } from './lib/feeds.js';
 import { resolveLive } from './lib/tv.js';
-import { sectionPages, indexPage, weatherPages, statusPage, comicPages, horoscopePages, tvGuidePage } from './lib/pages.js';
+import { fetchPlaylist, embeddable } from './lib/playlist.js';
+import { sectionPages, indexPage, weatherPages, statusPage, comicPages, horoscopePages, tvGuidePage, listingsPage } from './lib/pages.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3100;
@@ -15,7 +16,25 @@ const config = JSON.parse(await fs.readFile(path.join(ROOT, 'sources.json'), 'ut
 let pages = new Map();
 let tvChannels = [];          // [{ name, videoId, title, note }]
 const lastLive = new Map();   // youtube channel -> last good { videoId, title }
-let comicImages = new Set(); // image URLs the proxy may fetch
+const playlists = new Map();  // playlist id -> { at, programmes }
+const PLAYLIST_HOURS = 6;
+let comicImages = new Set();
+
+// A playlist channel's programmes: long enough videos that may be embedded,
+// in playlist order. Playlists change rarely, so this is cached for hours.
+async function playlistProgrammes(ch) {
+  const cached = playlists.get(ch.playlist);
+  if (cached && Date.now() - cached.at < PLAYLIST_HOURS * 3_600_000) return cached.programmes;
+  const videos = (await fetchPlaylist(ch.playlist)).filter((v) => v.seconds >= (ch.minMinutes ?? 0) * 60);
+  const programmes = [];
+  for (let i = 0; i < videos.length; i += 4) {
+    const batch = videos.slice(i, i + 4);
+    const ok = await Promise.all(batch.map((v) => embeddable(v.videoId).catch(() => false)));
+    programmes.push(...batch.filter((_, j) => ok[j]));
+  }
+  playlists.set(ch.playlist, { at: Date.now(), programmes });
+  return programmes;
+} // image URLs the proxy may fetch
 const imageCache = new Map(); // url -> Promise<{ type, body }>
 
 function getImage(src) {
@@ -98,6 +117,16 @@ async function refresh() {
   if (config.tv) {
     const channels = await Promise.all(config.tv.channels.map(async (ch) => {
       if (ch.testcard) return { number: ch.number, name: ch.name, note: ch.note, testcard: true };
+      if (ch.playlist) {
+        try {
+          const programmes = await playlistProgrammes(ch);
+          status.push({ name: `TV ${ch.name}`, count: programmes.length, at: now });
+          return { number: ch.number, name: ch.name, note: ch.note, slotMinutes: ch.slotMinutes, programmes };
+        } catch (err) {
+          status.push({ name: `TV ${ch.name}`, error: err.message, at: now });
+          return { number: ch.number, name: ch.name, note: ch.note, programmes: playlists.get(ch.playlist)?.programmes ?? [] };
+        }
+      }
       try {
         lastLive.set(ch.youtube, await resolveLive(ch.youtube));
       } catch (err) {
@@ -108,6 +137,7 @@ async function refresh() {
     }));
     tvChannels = channels;
     add(tvGuidePage(config.tv.page, channels));
+    add(listingsPage(config.tv.page + 1));
     extras.push({ name: 'On TV', page: config.tv.page });
   }
 

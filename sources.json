@@ -139,6 +139,7 @@
       { "number": 8, "name": "Bloomberg", "youtube": "UCIALMKvObZNtJ6AmdCLP7Lg" },
       { "number": 9, "name": "NASA ISS", "youtube": "UCLA_DiR1FfKNvjuUpBHmylQ" },
       { "number": 10, "name": "Lofi Girl", "youtube": "UCSJ4gkVC6NrvII8umztf0Ow" },
+      { "number": 11, "name": "Bush Tucker Man", "playlist": "PL7HSPnTFVAuFQkVzs3KzXjGXO78x-0HNE", "slotMinutes": 30, "minMinutes": 5 },
       { "number": 0, "name": "Test Card", "testcard": true, "note": "1 kHz tone" }
     ]
   },

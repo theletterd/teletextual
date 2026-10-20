@@ -2,6 +2,7 @@
 
 import { imageTiles } from './mosaic.js';
 import * as tv from './tv.js';
+import { listings } from './schedule.js';
 
 const COLS = 40;
 const ROWS = 25;
@@ -166,6 +167,30 @@ async function expandComic(page) {
   return page;
 }
 
+// Now and Next for playlist channels, drawn fresh each visit in local time.
+async function buildListings(page) {
+  if (!tv.getChannels().length) await tv.loadChannels();
+  const rows = [...page.subpages[0]];
+  const hhmm = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  for (const ch of tv.getChannels().filter((c) => c.programmes?.length)) {
+    rows.push({ s: [] }, { s: [{ t: ` ${ch.number} ${ch.name.toUpperCase()}`, fg: 'cyan' }] });
+    const list = listings(ch, Date.now(), 7).filter((p, i) => !(i === 0 && p.interlude)).slice(0, 6);
+    list.forEach((p, i) => {
+      const when = i === 0 && !p.interlude && p.start <= Date.now() ? { t: ' NOW  ', fg: 'green' } : { t: ` ${hhmm(p.start)}`, fg: 'yellow' };
+      const words = p.title.split(' ');
+      let line = '';
+      const lines = [];
+      for (const w of words) {
+        if ((line + ' ' + w).trim().length > 33) { lines.push(line); line = w; } else line = (line + ' ' + w).trim();
+      }
+      lines.push(line);
+      rows.push({ s: [when, { t: ' ' + lines[0], fg: 'white' }] });
+      if (lines[1]) rows.push({ s: [{ t: '       ' + (lines.length > 2 ? lines.slice(1).join(' ').slice(0, 31) + '..' : lines[1]), fg: 'white' }] });
+    });
+  }
+  return { ...page, subpages: [rows.slice(0, 23)] };
+}
+
 function openFull() {
   if (!state.current?.comic) return;
   full.querySelector('img').src = state.current.comic.img;
@@ -221,7 +246,7 @@ async function goto(num, { instant = false } = {}) {
   closeFull();
   clearInterval(state.rollTimer);
   state.searching = false;
-  state.current = page ?? notFound(num);
+  state.current = page?.listings ? await buildListings(page) : page ?? notFound(num);
   state.sub = 0;
   restartSubTimer();
   render();
