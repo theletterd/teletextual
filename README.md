@@ -84,8 +84,10 @@ gap after each: idents in the spirit of BBC Two's, where the channel number
 stars in a short animation (teletext blocks stacking up, paint balloons, or
 the viewer's current weather), alternating with a clock that counts down to
 the next programme, with time pips at the end. They're drawn live in
-`public/interlude.js`. Channel 99 (`"idents": true`) flips through every
-ident in turn, for showing them off. Videos shorter than `minMinutes`, or that YouTube won't let
+`public/interlude.js`. A channel can also have its own ident (`"ident":
+"bobross"` or `"taskmaster"`), which opens each of its interludes. Channel 99
+(`"idents": true`) flips through every ident in turn, channel ones under
+their own numbers, for showing them off. Videos shorter than `minMinutes`, or that YouTube won't let
 other sites embed, are skipped. Playlists are re-read every six hours.
 
 ## Comics

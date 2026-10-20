@@ -137,7 +137,7 @@ async function refresh() {
         try {
           const programmes = await playlistProgrammes(ch);
           status.push({ name: `TV ${ch.name}`, count: programmes.length, at: now });
-          return { number: ch.number, name: ch.name, note: ch.note, slotMinutes: ch.slotMinutes, programmes };
+          return { number: ch.number, name: ch.name, note: ch.note, slotMinutes: ch.slotMinutes, ident: ch.ident, programmes };
         } catch (err) {
           status.push({ name: `TV ${ch.name}`, error: err.message, at: now });
           return { number: ch.number, name: ch.name, note: ch.note, programmes: playlists.get(ch.playlist)?.programmes ?? [] };

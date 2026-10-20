@@ -28,6 +28,14 @@ function bounce(p) {
   return n * (p -= 2.625 / d) * p + 0.984375;
 }
 
+function poly(ctx, points, fill) {
+  ctx.beginPath();
+  points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
 function text(ctx, str, x, y, size, colour, align = 'center', font = FONT) {
   ctx.font = `${size}px ${font}`;
   ctx.fillStyle = colour;
@@ -375,7 +383,192 @@ const weather = {
   },
 };
 
-const IDENTS = { mosaic, paint, weather };
+
+// --- Bob Ross: a little landscape painted in, happy little trees and all ---
+
+const bobross = {
+  setup(info) {
+    const left = W * 0.1, top = H * 0.06, cw = W * 0.8, ch = H * 0.64;
+    const trees = [
+      { x: left + cw * 0.12, base: top + ch * 0.97, h: ch * 0.55, at: 0.42 },
+      { x: left + cw * 0.24, base: top + ch * 0.99, h: ch * 0.42, at: 0.5 },
+      { x: left + cw * 0.86, base: top + ch * 0.98, h: ch * 0.5, at: 0.58 },
+    ];
+    return { left, top, cw, ch, trees, mask: numberMask(String(info.number), 300) };
+  },
+  draw(ctx, p, t, info, s) {
+    const { left, top, cw, ch } = s;
+    ctx.fillStyle = '#3a2718';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f4efe2';
+    ctx.fillRect(left, top, cw, ch);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(left, top, cw, ch);
+    ctx.clip();
+
+    // Sky, in broad strokes from left to right.
+    const sky = clamp(p / 0.25);
+    const g = ctx.createLinearGradient(0, top, 0, top + ch * 0.7);
+    g.addColorStop(0, '#1d3b6e');
+    g.addColorStop(1, '#f6e7c8');
+    ctx.fillStyle = g;
+    for (let i = 0; i < 6; i++) {
+      const k = clamp(sky * 1.4 - i * 0.08);
+      ctx.fillRect(left, top + i * ch * 0.12, cw * k, ch * 0.13);
+    }
+
+    // Mountains, revealed top down.
+    const mtn = clamp((p - 0.2) / 0.22);
+    if (mtn) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(left, top, cw, ch * 0.35 + ch * 0.65 * mtn);
+      ctx.clip();
+      poly(ctx, [[left, top + ch * 0.75], [left + cw * 0.3, top + ch * 0.25], [left + cw * 0.5, top + ch * 0.55], [left + cw * 0.7, top + ch * 0.18], [left + cw, top + ch * 0.7], [left + cw, top + ch], [left, top + ch]], '#4b4a5a');
+      poly(ctx, [[left + cw * 0.3, top + ch * 0.25], [left + cw * 0.36, top + ch * 0.36], [left + cw * 0.27, top + ch * 0.34]], '#fff');
+      poly(ctx, [[left + cw * 0.7, top + ch * 0.18], [left + cw * 0.77, top + ch * 0.31], [left + cw * 0.65, top + ch * 0.28]], '#fff');
+      ctx.restore();
+    }
+    // Meadow.
+    const field = clamp((p - 0.35) / 0.12);
+    if (field) {
+      ctx.fillStyle = '#3f6b2e';
+      ctx.fillRect(left, top + ch * (1 - 0.22 * field), cw, ch * 0.22);
+    }
+    // Happy little trees, a tier at a time from the bottom up.
+    for (const tree of s.trees) {
+      const k = clamp((p - tree.at) / 0.14);
+      if (!k) continue;
+      ctx.fillStyle = '#4a2f1b';
+      ctx.fillRect(tree.x - 4, tree.base - tree.h * 0.12, 8, tree.h * 0.12);
+      const tiers = 5;
+      for (let i = 0; i < Math.ceil(tiers * k); i++) {
+        const y = tree.base - tree.h * 0.1 - (i * tree.h * 0.85) / tiers;
+        const w = tree.h * 0.32 * (1 - i / (tiers + 1));
+        poly(ctx, [[tree.x - w, y], [tree.x + w, y], [tree.x, y - tree.h * 0.28]], i % 2 ? '#1f4a26' : '#2a5e30');
+      }
+    }
+    ctx.restore();
+
+    // The channel number, painted on in titanium white.
+    const num = clamp((p - 0.3) / 0.28);
+    if (num) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W * num, H);
+      ctx.clip();
+      ctx.shadowColor = 'rgba(0,0,0,0.35)';
+      ctx.shadowBlur = 12;
+      ctx.drawImage(s.mask, 0, -H * 0.1);
+      ctx.restore();
+    }
+    caption(ctx, p, info);
+  },
+};
+
+// --- Taskmaster: a sealed envelope, a task inside ------------------------
+
+const TASKS = [
+  'Make this interlude feel as short as possible. Fastest wins.',
+  'Put the kettle on before the next programme starts. Best brew wins.',
+  'Find the most surprising channel on this television. Your time starts now.',
+  'Paint a happy little tree on channel 12. Most joyful tree wins.',
+  'Bring back the test card. You have ten seconds.',
+];
+
+function seal(ctx, x, y, r, number, alpha = 1, split = 0) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (const side of split ? [-1, 1] : [0]) {
+    ctx.save();
+    if (side) {
+      // Each half drops and tips away from the middle, turning about the seal.
+      ctx.translate(x + side * split * 30, y + split * 50);
+      ctx.rotate(side * split * 0.5);
+      ctx.translate(-x, -y);
+      ctx.beginPath();
+      ctx.rect(side < 0 ? x - r * 2 : x, y - r * 2, r * 2, r * 4);
+      ctx.clip();
+    }
+    // Wax: a lumpy red disc with a pressed ring and number.
+    ctx.fillStyle = '#b3121b';
+    ctx.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const a = (i / 24) * Math.PI * 2, wob = r * (1 + 0.08 * Math.sin(i * 2.7));
+      ctx.lineTo(x + Math.cos(a) * wob, y + Math.sin(a) * wob);
+    }
+    ctx.fill();
+    ctx.strokeStyle = '#7d0a10';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = BIG.replace('1px', `${Math.round(r * 0.75)}px`);
+    ctx.fillStyle = '#7d0a10';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(number), x, y + 2);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+const taskmaster = {
+  setup() {
+    return { task: TASKS[Math.floor(rand(0, TASKS.length))] };
+  },
+  draw(ctx, p, t, info, s) {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#4a2c1a');
+    bg.addColorStop(1, '#22140c');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const ew = 520, eh = 300, ex = (W - ew) / 2;
+    const ey = H * 0.5 - eh / 2 + (1 - ease(clamp(p / 0.14))) * H;
+    const open = clamp((p - 0.3) / 0.12);   // flap opening
+    const card = ease(clamp((p - 0.42) / 0.14));
+
+    // Back of the envelope; an open flap folds up behind the card.
+    ctx.fillStyle = '#d9c9a3';
+    ctx.fillRect(ex, ey, ew, eh);
+    const tipY = ey + eh * 0.5 * (1 - 2 * open);
+    if (open > 0.5) poly(ctx, [[ex, ey], [ex + ew, ey], [ex + ew / 2, tipY]], '#cdbb92');
+
+    // The card rises out with the task typed on it.
+    if (card) {
+      const cy = ey + 20 - card * 210;
+      ctx.fillStyle = '#fbf8f1';
+      ctx.fillRect(ex + 30, cy, ew - 60, eh - 30);
+      const chars = Math.floor(clamp((p - 0.55) / 0.3) * s.task.length);
+      const words = s.task.slice(0, chars).split(' ');
+      let line = '', y = cy + 42;
+      ctx.font = '24px "Courier New", monospace';
+      ctx.fillStyle = '#222';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      for (const word of words) {
+        if (ctx.measureText(`${line} ${word}`).width > ew - 120) { ctx.fillText(line, ex + 60, y); y += 34; line = word; }
+        else line = line ? `${line} ${word}` : word;
+      }
+      ctx.fillText(line, ex + 60, y);
+    }
+
+    // Front pocket, then a closed flap over everything.
+    poly(ctx, [[ex, ey + eh * 0.3], [ex, ey + eh], [ex + ew, ey + eh], [ex + ew, ey + eh * 0.3], [ex + ew / 2, ey + eh * 0.62]], '#eadcb8');
+    if (open <= 0.5) poly(ctx, [[ex, ey], [ex + ew, ey], [ex + ew / 2, tipY]], '#f1e6c8');
+
+    // The seal sits on the flap's tip, then cracks and falls away.
+    const crack = clamp((p - 0.24) / 0.1);
+    if (crack < 1) seal(ctx, ex + ew / 2, ey + eh * 0.5, 52, info.number, 1 - crack * 0.6, crack);
+    caption(ctx, p, info);
+  },
+};
+
+// Shared idents, then ones a channel can claim with "ident" in sources.json.
+const SHARED = ['mosaic', 'paint', 'weather'];
+const IDENTS = { mosaic, paint, weather, bobross, taskmaster };
 
 // --- The clock -------------------------------------------------------------
 
@@ -438,12 +631,26 @@ function nextSegment(now) {
   const left = run.info.showcase ? Infinity : run.info.next.start - Date.now();
   const ident = run.info.showcase || (run.seg?.kind !== 'ident' && left > IDENT_MS + 3000);
   if (ident) {
-    const name = run.order[run.turn++ % run.order.length];
-    run.seg = { kind: 'ident', name, start: now, length: IDENT_MS, state: IDENTS[name].setup(run.info) };
+    const { name, info } = run.order[run.turn++ % run.order.length];
+    const def = IDENTS[name];
+    run.seg = { kind: 'ident', name, info, start: now, length: IDENT_MS, state: def.setup(info) };
     sound.chime();
   } else {
     run.seg = { kind: 'clock', start: now, length: left < CLOCK_MS + IDENT_MS ? Infinity : CLOCK_MS };
   }
+}
+
+// Which idents play, and as which channel. A channel's own ident goes first;
+// a showcase plays every shared ident, then each channel's under its number.
+function runningOrder(info) {
+  if (info.showcase) {
+    return [
+      ...SHARED.map((name) => ({ name, info })),
+      ...(info.own ?? []).filter((o) => IDENTS[o.ident]).map((o) => ({ name: o.ident, info: { ...info, number: o.number, name: o.name } })),
+    ];
+  }
+  const shared = [...SHARED].sort(() => Math.random() - 0.5).map((name) => ({ name, info }));
+  return IDENTS[info.ident] ? [{ name: info.ident, info }, ...shared] : shared;
 }
 
 function frame(now) {
@@ -451,7 +658,7 @@ function frame(now) {
   if (!run.seg || now - run.seg.start >= run.seg.length) nextSegment(now);
   const { ctx, info, seg } = run;
   if (seg.kind === 'ident') {
-    IDENTS[seg.name].draw(ctx, (now - seg.start) / seg.length, now, info, seg.state);
+    IDENTS[seg.name].draw(ctx, (now - seg.start) / seg.length, now, seg.info, seg.state);
   } else {
     clock(ctx, info);
     // Pips over the last five seconds, a long one as the programme starts.
@@ -484,12 +691,13 @@ export function startInterlude(canvas, info) {
   run = {
     ctx: canvas.getContext('2d'),
     info: { ...info, weather: info.weather ?? conditions },
-    order: info.showcase ? Object.keys(IDENTS) : Object.keys(IDENTS).sort(() => Math.random() - 0.5),
+    order: [],
     turn: 0,
     seg: null,
     lastPip: null,
   };
-  if (!info.weather) loadConditions().then(() => { if (run) run.info.weather = conditions; });
+  run.order = runningOrder(run.info);
+  if (!info.weather) loadConditions().then(() => { if (run) for (const o of run.order) o.info.weather = conditions; });
   document.fonts.load(`20px ${FONT}`).finally(() => { if (run) raf = requestAnimationFrame(frame); });
 }
 

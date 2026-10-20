@@ -106,7 +106,7 @@ async function playScheduled(ch, seq) {
   if (!now) return picture('offair');
   if (now.interlude) {
     const next = onAir(ch, now.end);
-    picture('interlude', { number: ch.number, name: ch.name, next: { title: next.title, start: next.start } });
+    picture('interlude', { number: ch.number, name: ch.name, ident: ch.ident, next: { title: next.title, start: next.start } });
     return wakeAt(now.end);
   }
   picture('stream');
@@ -126,7 +126,11 @@ async function tune(i, { quiet = false } = {}) {
   const ch = channels[current];
   if (!quiet) showOsd(`${ch.number} ${ch.name.toUpperCase()}`);
   if (ch.testcard) return picture('card');
-  if (ch.idents) return picture('interlude', { number: ch.number, name: ch.name, showcase: true });
+  if (ch.idents) {
+    // Show off the channel idents too, each with its own channel's number.
+    const own = channels.filter((c) => c.ident).map((c) => ({ ident: c.ident, number: c.number, name: c.name }));
+    return picture('interlude', { number: ch.number, name: ch.name, showcase: true, own });
+  }
   if (ch.programmes) return playScheduled(ch, seq);
   if (!ch.videoId) {
     showOsd(`${ch.number} OFF AIR`);
