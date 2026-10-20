@@ -17,7 +17,7 @@ let pages = new Map();
 let conditions = [];          // first city of each weather region, for the weather ident
 let tvChannels = [];          // [{ name, videoId, title, note }]
 const lastLive = new Map();   // youtube channel -> last good { videoId, title }
-const playlists = new Map();  // playlist id -> { at, programmes }
+const playlists = new Map();  // playlist ids, joined -> { at, programmes }
 const PLAYLIST_HOURS = 6;
 const embedCache = new Map(); // video id -> may be embedded; rarely changes
 
@@ -33,23 +33,46 @@ async function canEmbed(videoId) {
   }
   return embedCache.get(videoId);
 }
-let comicImages = new Set();
+let comicImages = new Set();  // image URLs the proxy may fetch
 
-// A playlist channel's programmes: long enough videos that may be embedded,
-// in playlist order. Playlists change rarely, so this is cached for hours.
+// Take one from each list in turn until all are used up.
+function interleave(lists) {
+  const out = [];
+  for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
+  return out;
+}
+
+// A playlist channel's programmes: long enough videos that may be embedded.
+// "playlist" may be one id or a list; lists play one after another, or with
+// "mix" one video from each in turn. Playlists change rarely, so this is
+// cached for hours.
 async function playlistProgrammes(ch) {
-  const cached = playlists.get(ch.playlist);
+  const ids = [].concat(ch.playlist);
+  const key = ids.join(',');
+  const cached = playlists.get(key);
   if (cached && Date.now() - cached.at < PLAYLIST_HOURS * 3_600_000) return cached.programmes;
-  const videos = (await fetchPlaylist(ch.playlist)).filter((v) => v.seconds >= (ch.minMinutes ?? 0) * 60);
+  const lists = await Promise.all(ids.map((id) => fetchPlaylist(id)));
+  // The same song can be on several labels' playlists under different
+  // video IDs, so titles count as duplicates too.
+  const seen = new Set();
+  const fresh = (v) => {
+    const keys = [v.videoId, v.title.toLowerCase().replace(/[^a-z0-9]/g, '')];
+    if (keys.some((k) => seen.has(k))) return false;
+    keys.forEach((k) => seen.add(k));
+    return true;
+  };
+  const videos = (ch.mix ? interleave(lists) : lists.flat())
+    .filter(fresh)
+    .filter((v) => v.seconds >= (ch.minMinutes ?? 0) * 60);
   const programmes = [];
   for (let i = 0; i < videos.length; i += 8) {
     const batch = videos.slice(i, i + 8);
     const ok = await Promise.all(batch.map((v) => canEmbed(v.videoId)));
     programmes.push(...batch.filter((_, j) => ok[j]));
   }
-  playlists.set(ch.playlist, { at: Date.now(), programmes });
+  playlists.set(key, { at: Date.now(), programmes });
   return programmes;
-} // image URLs the proxy may fetch
+}
 const imageCache = new Map(); // url -> Promise<{ type, body }>
 
 function getImage(src) {
@@ -140,7 +163,7 @@ async function refresh() {
           return { number: ch.number, name: ch.name, note: ch.note, slotMinutes: ch.slotMinutes, ident: ch.ident, programmes };
         } catch (err) {
           status.push({ name: `TV ${ch.name}`, error: err.message, at: now });
-          return { number: ch.number, name: ch.name, note: ch.note, programmes: playlists.get(ch.playlist)?.programmes ?? [] };
+          return { number: ch.number, name: ch.name, note: ch.note, programmes: playlists.get([].concat(ch.playlist).join(','))?.programmes ?? [] };
         }
       }
       try {

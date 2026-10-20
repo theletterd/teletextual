@@ -144,6 +144,17 @@
       { "number": 13, "name": "Rock Hits", "playlist": "PLGBuKfnErZlAQtti6I5ldTibUYeLZKQk5", "ident": "rockhits" },
       { "number": 14, "name": "Infomercials", "playlist": "PLDhHX85ZBYcdi-Jb3YS5Wu0m85RNaKzkb", "ident": "infomercial" },
       { "number": 15, "name": "Taskmaster", "playlist": "PLj3wnRdyoKVRM9DqNzJnXD6XORLla6LxK", "slotMinutes": 60, "ident": "taskmaster" },
+      { "number": 16, "name": "Doctor Who", "playlist": ["PLKQM79z0Gd1kRkP17rtC6ZEC7vfBdN_FC", "PLKQM79z0Gd1nkzonXK0p0h7NALPawSGjf"], "slotMinutes": 30, "note": "Tom Baker, Jon Pertwee" },
+      { "number": 17, "name": "Wildlife", "playlist": "PLeCPQtbuJaPv35nn-S5f-FOmTYhK4g_BW", "slotMinutes": 60, "minMinutes": 20 },
+      { "number": 18, "name": "History", "playlist": ["PLovlAKbQVz6C2PG0uSVQWmzot321mQuMN", "PLhMDlPcDRBKQsawQMVty_dNztC8QgppML"], "mix": true, "slotMinutes": 60, "minMinutes": 20 },
+      { "number": 19, "name": "World", "playlist": "PLovlAKbQVz6A6aeBgS_E6WONvnSIG6LAc", "slotMinutes": 60, "minMinutes": 20 },
+      { "number": 20, "name": "80s Hits", "playlist": ["PLmXxqSJJq-yXrCPGIT2gn8b34JjOrl4Xf", "PL45_r-J4SdAFo3B656arFdIYwoJWOhRea", "PLkqz3S84Tw-Qjyd_zHSVH_Xj6ge7yrgYI"], "mix": true },
+      { "number": 21, "name": "70s Hits", "playlist": "PL9tY0BWXOZFtnZDTuR0i7He_i-SEN6cye" },
+      { "number": 22, "name": "Motown", "playlist": "PL45_r-J4SdAEUJB1iEHHDbZBB4yT0kzl5" },
+      { "number": 23, "name": "Movies", "playlist": ["PLsZQnDqnebk4kN-oGYb2JmTU0ofZHqZTg", "PLsZQnDqnebk5HQZ7Wh5dblxRumNWbzJJC"], "mix": true, "slotMinutes": 30, "minMinutes": 45, "note": "Popcornflix" },
+      { "number": 24, "name": "Classic Films", "playlist": "PLGEvQOL-yCoEWYgfMmozHngZtmRPbUpKX", "slotMinutes": 30, "minMinutes": 45, "note": "public domain" },
+      { "number": 25, "name": "Forensic Files", "playlist": "PLC4mqmKvz1IYBlwhj00ijRmDqk3-Stoac", "slotMinutes": 30 },
+      { "number": 26, "name": "The Rifleman", "playlist": "PLtbMv4lXX2mvPj1kMzYl1OFczol5AxMQE", "slotMinutes": 30 },
       { "number": 99, "name": "Idents", "idents": true, "note": "every ident in turn" },
       { "number": 0, "name": "Test Card", "testcard": true, "note": "1 kHz tone" }
     ]

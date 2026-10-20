@@ -93,7 +93,10 @@ and a number with no channel shows static and NO SIGNAL, with a hiss. P+ and
 P- step through channels in the order they're listed.
 
 A channel can also be a YouTube playlist (`playlist`, plus optional
-`slotMinutes` and `minMinutes`). It runs to a clock-based schedule, shared by
+`slotMinutes` and `minMinutes`), or several: give `playlist` as a list and
+they play one after another, or set `"mix": true` to take one video from each
+in turn. Repeats (the same video, or the same title on different labels'
+playlists) play once. It runs to a clock-based schedule, shared by
 the server and browser in `public/schedule.js`: the channel went on air at a
 fixed moment and has looped its programmes since, so tuning in at 18:05 drops
 you five minutes into the 18:00 programme, the same for everyone. With
