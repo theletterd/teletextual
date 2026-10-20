@@ -79,8 +79,13 @@ A channel can also be a YouTube playlist (`playlist`, plus optional
 the server and browser in `public/schedule.js`: the channel went on air at a
 fixed moment and has looped its programmes since, so tuning in at 18:05 drops
 you five minutes into the 18:00 programme, the same for everyone. With
-`slotMinutes`, programmes start on slot boundaries and the test card fills the
-gap after each. Videos shorter than `minMinutes`, or that YouTube won't let
+`slotMinutes`, programmes start on slot boundaries and an interlude fills the
+gap after each: idents in the spirit of BBC Two's, where the channel number
+stars in a short animation (teletext blocks stacking up, paint balloons, or
+the viewer's current weather), alternating with a clock that counts down to
+the next programme, with time pips at the end. They're drawn live in
+`public/interlude.js`. Channel 99 (`"idents": true`) flips through every
+ident in turn, for showing them off. Videos shorter than `minMinutes`, or that YouTube won't let
 other sites embed, are skipped. Playlists are re-read every six hours.
 
 ## Comics
@@ -109,5 +114,6 @@ public-domain recreation of the SAA5050 teletext character generator, in
 - `lib/playlist.js` – reads a YouTube playlist's videos and lengths
 - `public/mosaic.js` – converts images to teletext mosaic rows
 - `public/tv.js` – the TV picture, channel changes and TEXT / TV / MIX
-- `public/sound.js`, `public/static.js` – test card tone, hiss and snow
+- `public/sound.js`, `public/static.js` – test card tone, chimes, pips, hiss and snow
+- `public/interlude.js` – idents and the countdown clock
 - `public/` – the TV, the remote, and the renderer

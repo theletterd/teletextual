@@ -53,3 +53,35 @@ export function setMuted(on) {
   muted = on;
   if (gain && playing) gain.gain.value = on ? 0 : LEVEL[playing];
 }
+
+// One-shot sounds for interludes. They need audio already unlocked by a key
+// press, and stay quiet when muted.
+function note(freq, at, length, level, type = 'sine', flat = false) {
+  if (!ctx || muted) return;
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  const t = ctx.currentTime + at;
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(level, t + 0.01);
+  if (flat) {
+    env.gain.setValueAtTime(level, t + length - 0.01);
+    env.gain.linearRampToValueAtTime(0, t + length);
+  } else {
+    env.gain.exponentialRampToValueAtTime(0.0001, t + length);
+  }
+  osc.connect(env).connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + length + 0.05);
+}
+
+// A rising four-note arpeggio for the start of an ident.
+export function chime() {
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, i * 0.12, 0.9, 0.05, 'triangle'));
+}
+
+// Time pips: short ones counting down, a long one on the hour.
+export function pip(long = false) {
+  note(1000, 0, long ? 0.5 : 0.1, 0.05, 'sine', true);
+}

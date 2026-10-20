@@ -6,10 +6,12 @@ import { drawTestCard } from './testcard.js';
 import { startStatic, stopStatic } from './static.js';
 import * as sound from './sound.js';
 import { onAir } from './schedule.js';
+import { startInterlude, stopInterlude } from './interlude.js';
 
 const glass = document.querySelector('.glass');
 const card = document.getElementById('testcard');
 const snow = document.getElementById('static');
+const interlude = document.getElementById('interlude');
 const noSignal = document.getElementById('nosignal');
 const osd = document.getElementById('osd');
 const KEYS = { text: 't', tv: 'v', mix: 'x' };
@@ -64,9 +66,12 @@ function showOsd(text, stay = false) {
 }
 
 // What's behind the glass: 'stream', 'card' (with tone), 'offair' (card,
-// silent) or 'static' (snow, hiss and NO SIGNAL).
-function picture(kind) {
+// silent), 'static' (snow, hiss and NO SIGNAL) or 'interlude' (idents and a
+// clock until the next programme; `info` says which).
+function picture(kind, info) {
   if (kind !== 'stream') player?.stopVideo();
+  interlude.hidden = kind !== 'interlude';
+  if (kind === 'interlude') startInterlude(interlude, info); else stopInterlude();
   const showCard = kind === 'card' || kind === 'offair';
   if (showCard && !cardDrawn) { drawTestCard(card); cardDrawn = true; }
   card.hidden = !showCard;
@@ -100,7 +105,8 @@ async function playScheduled(ch, seq) {
   const now = onAir(ch);
   if (!now) return picture('offair');
   if (now.interlude) {
-    picture('offair');
+    const next = onAir(ch, now.end);
+    picture('interlude', { number: ch.number, name: ch.name, next: { title: next.title, start: next.start } });
     return wakeAt(now.end);
   }
   picture('stream');
@@ -120,6 +126,7 @@ async function tune(i, { quiet = false } = {}) {
   const ch = channels[current];
   if (!quiet) showOsd(`${ch.number} ${ch.name.toUpperCase()}`);
   if (ch.testcard) return picture('card');
+  if (ch.idents) return picture('interlude', { number: ch.number, name: ch.name, showcase: true });
   if (ch.programmes) return playScheduled(ch, seq);
   if (!ch.videoId) {
     showOsd(`${ch.number} OFF AIR`);

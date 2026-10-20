@@ -14,6 +14,7 @@ const PORT = Number(process.env.PORT) || 3100;
 const config = JSON.parse(await fs.readFile(path.join(ROOT, 'sources.json'), 'utf8'));
 
 let pages = new Map();
+let conditions = [];          // first city of each weather region, for the weather ident
 let tvChannels = [];          // [{ name, videoId, title, note }]
 const lastLive = new Map();   // youtube channel -> last good { videoId, title }
 const playlists = new Map();  // playlist id -> { at, programmes }
@@ -131,6 +132,7 @@ async function refresh() {
   if (config.tv) {
     const channels = await Promise.all(config.tv.channels.map(async (ch) => {
       if (ch.testcard) return { number: ch.number, name: ch.name, note: ch.note, testcard: true };
+      if (ch.idents) return { number: ch.number, name: ch.name, note: ch.note, idents: true };
       if (ch.playlist) {
         try {
           const programmes = await playlistProgrammes(ch);
@@ -155,11 +157,19 @@ async function refresh() {
     extras.push({ name: 'On TV', page: config.tv.page });
   }
 
+  const nowConditions = [];
   for (const region of config.weather?.regions ?? []) {
     const label = `Weather ${region.name}`;
     try {
       const cities = await fetchWeather(region.cities, region.units);
       weatherPages(region, cities, now, config.weather.regions).forEach(add);
+      const c = cities[0];
+      if (c?.current) {
+        nowConditions.push({
+          region: region.name, city: c.name, timezone: c.timezone, units: region.units ?? 'C',
+          code: c.current.weather_code, temp: Math.round(c.current.temperature_2m), isDay: c.current.is_day === 1,
+        });
+      }
       status.push({ name: label, count: cities.length, at: now });
     } catch (err) {
       status.push({ name: label, error: err.message, at: now });
@@ -176,6 +186,7 @@ async function refresh() {
   add(statusPage(199, status.sort((a, b) => a.name.localeCompare(b.name))));
 
   pages = next;
+  if (nowConditions.length) conditions = nowConditions;
   comicImages = images;
   // Keep only current comics in memory, and fetch new ones ahead of time.
   for (const src of imageCache.keys()) if (!images.has(src)) imageCache.delete(src);
@@ -210,6 +221,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
   if (url.pathname === '/api/tv') return json(res, 200, tvChannels);
+  if (url.pathname === '/api/conditions') return json(res, 200, conditions);
   const m = url.pathname.match(/^\/api\/page\/(\d{3})$/);
   if (m) {
     const page = pages.get(Number(m[1]));

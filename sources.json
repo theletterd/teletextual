@@ -144,6 +144,7 @@
       { "number": 13, "name": "Rock Hits", "playlist": "PLGBuKfnErZlAQtti6I5ldTibUYeLZKQk5" },
       { "number": 14, "name": "Infomercials", "playlist": "PLDhHX85ZBYcdi-Jb3YS5Wu0m85RNaKzkb" },
       { "number": 15, "name": "Taskmaster", "playlist": "PLj3wnRdyoKVRM9DqNzJnXD6XORLla6LxK", "slotMinutes": 60 },
+      { "number": 99, "name": "Idents", "idents": true, "note": "every ident in turn" },
       { "number": 0, "name": "Test Card", "testcard": true, "note": "1 kHz tone" }
     ]
   },
