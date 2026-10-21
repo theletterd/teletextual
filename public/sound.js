@@ -9,6 +9,23 @@ let gain = null;
 let source = null;
 let playing = null;
 let muted = false;
+let master = null;  // everything goes through here, for the volume buttons
+let volume = 0.8;
+
+// The master volume node, made on first use.
+function out() {
+  if (!master) {
+    master = ctx.createGain();
+    master.gain.value = volume;
+    master.connect(ctx.destination);
+  }
+  return master;
+}
+
+export function setVolume(level) {
+  volume = level;
+  if (master) master.gain.value = level;
+}
 
 export function unlock() {
   ctx ??= new AudioContext();
@@ -41,7 +58,7 @@ export function play(kind) {
   unlock();
   if (!gain) {
     gain = ctx.createGain();
-    gain.connect(ctx.destination);
+    gain.connect(out());
   }
   gain.gain.value = muted ? 0 : LEVEL[kind];
   source = make(kind);
@@ -71,7 +88,7 @@ function note(freq, at, length, level, type = 'sine', flat = false) {
   } else {
     env.gain.exponentialRampToValueAtTime(0.0001, t + length);
   }
-  osc.connect(env).connect(ctx.destination);
+  osc.connect(env).connect(out());
   osc.start(t);
   osc.stop(t + length + 0.05);
 }
@@ -105,7 +122,7 @@ function burst(length, type, from, to, level, at = 0) {
   const env = ctx.createGain();
   env.gain.setValueAtTime(level, t);
   env.gain.exponentialRampToValueAtTime(0.0001, t + length);
-  src.connect(filter).connect(env).connect(ctx.destination);
+  src.connect(filter).connect(env).connect(out());
   src.start(t);
   src.stop(t + length + 0.05);
 }

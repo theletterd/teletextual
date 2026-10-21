@@ -12,6 +12,8 @@ No dependencies; needs Node 20+.
 
 ## Using it
 
+- Vol − and Vol + (or `[` and `]`) set the volume for the TV and every
+  generated sound; it's remembered between visits.
 - The red button on the remote is the power: off collapses the picture to a
   dot, as an old CRT did, and silences everything; on retunes.
 - Type a three-digit page number (or use the remote). `100` is the index.

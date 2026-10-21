@@ -32,6 +32,15 @@ let entryTimer = 0;
 let slotTimer = 0;
 let subtitles = false;
 let poweredOff = false;
+
+// Volume, 0-100 in tens, remembered between visits where storage allows.
+const VOLUME_KEY = 'teletextual-volume';
+let volume = 80;
+try {
+  const saved = Number(localStorage.getItem(VOLUME_KEY));
+  if (localStorage.getItem(VOLUME_KEY) !== null && saved >= 0 && saved <= 100) volume = saved;
+} catch { /* private mode and the like */ }
+sound.setVolume(volume / 100);
 let onStream = false;
 let strapTimer = 0;
 let strapHide = 0;
@@ -61,7 +70,7 @@ function loadPlayer() {
       width: '100%',
       height: '100%',
       playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1, iv_load_policy: 3 },
-      events: { onReady: resolve, onStateChange: stateChanged, onError: playbackFailed },
+      events: { onReady: (e) => { e.target.setVolume(volume); resolve(); }, onStateChange: stateChanged, onError: playbackFailed },
     });
   }));
   return ready;
@@ -295,6 +304,32 @@ export function channelDigit(d) {
   if (entry.length === 2) return finish();
   showOsd(`${entry}-`, true);
   entryTimer = setTimeout(finish, 1000);
+}
+
+// A row of ten blocks under VOLUME, filled to the level, as old sets showed.
+function showVolume() {
+  const bar = document.createElement('span');
+  bar.className = 'bar';
+  for (let i = 1; i <= 10; i++) {
+    const block = document.createElement('i');
+    if (i * 10 > volume) block.className = 'off';
+    bar.append(block);
+  }
+  osd.replaceChildren('VOLUME ', bar);
+  osd.hidden = false;
+  clearTimeout(osdTimer);
+  osdTimer = setTimeout(() => { osd.hidden = true; }, 2500);
+}
+
+// Turning up the volume while muted unmutes, as on a real TV.
+export function changeVolume(step) {
+  sound.unlock();
+  volume = Math.max(0, Math.min(100, volume + step));
+  if (muted && step > 0) toggleMute();
+  player?.setVolume(volume);
+  sound.setVolume(volume / 100);
+  try { localStorage.setItem(VOLUME_KEY, String(volume)); } catch { /* not saved, still set */ }
+  showVolume();
 }
 
 export function toggleMute() {

@@ -154,6 +154,9 @@ main {
   pointer-events: none;
 }
 .osd[hidden] { display: none; }
+.osd .bar { display: inline-flex; gap: calc(var(--cw) * 0.25); vertical-align: middle; margin-left: calc(var(--cw) * 0.5); }
+.osd .bar i { width: calc(var(--cw) * 0.7); height: calc(var(--ch) * 1.1); background: var(--green); box-shadow: 2px 2px 0 #000; }
+.osd .bar i.off { background: rgba(0, 255, 0, 0.2); }
 
 /* The strap: "You're watching ..." slides in now and then, top left, clear of
    the tickers news channels run along the bottom. */
@@ -269,6 +272,8 @@ main {
 .fast .yellow { background: #dd2; } .fast .cyan { background: #2cc; }
 .misc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.volume { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.volume button { font-size: 13px; }
 .modes button { font-size: 12px; }
 .misc button { font-size: 12px; }
 .modes button.on { background: #2b6; color: #000; }
@@ -288,7 +293,7 @@ body:not([data-layout="desktop"]) .remote {
   padding: 12px;
   gap: 8px;
   grid-template-columns: 1.25fr 1fr;
-  grid-template-areas: "pad top" "pad fast" "pad modes" "pad misc";
+  grid-template-areas: "pad top" "pad fast" "pad modes" "pad volume" "pad misc";
   align-items: center;
 }
 body:not([data-layout="desktop"]) .remote button { padding: 8px 0; font-size: 14px; }
@@ -297,6 +302,8 @@ body:not([data-layout="desktop"]) .top { grid-area: top; }
 body:not([data-layout="desktop"]) .fast { grid-area: fast; gap: 6px; }
 body:not([data-layout="desktop"]) .modes { grid-area: modes; grid-template-columns: repeat(2, 1fr); }
 body:not([data-layout="desktop"]) .misc { grid-area: misc; gap: 6px; }
+body:not([data-layout="desktop"]) .volume { grid-area: volume; gap: 6px; }
+body:not([data-layout="desktop"]) .volume button { font-size: 12px; padding: 7px 0; }
 body:not([data-layout="desktop"]) .modes button,
 body:not([data-layout="desktop"]) .misc button { font-size: 12px; padding: 7px 0; }
 body:not([data-layout="desktop"]) .remote .power { width: 34px; height: 34px; }

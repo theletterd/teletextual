@@ -331,6 +331,9 @@ function togglePower() {
 function handleKey(key) {
   if (key === 'power') return togglePower();
   if (!poweredOn) return;
+  // Volume works the same in every mode.
+  if (key === 'volup' || key === ']') return tv.changeVolume(10);
+  if (key === 'voldown' || key === '[') return tv.changeVolume(-10);
   if (tv.getMode() === 'tv') return handleTvKey(key);
   if (/^\d$/.test(key)) return digit(key);
   switch (key.toLowerCase()) {
