@@ -6,7 +6,7 @@
 import * as sound from './sound.js';
 
 const W = 1024, H = 768;
-const IDENT_MS = 10_000;
+const IDENT_MS = 7_000;
 const CLOCK_MS = 20_000;
 const FONT = 'Bedstead, monospace';
 const BIG = '900 1px "Helvetica Neue", Arial, sans-serif';
@@ -346,7 +346,7 @@ const paint = {
       }
       return [W / 2, H * 0.44];
     };
-    const shots = Array.from({ length: 12 }, (_, i) => {
+    const shots = Array.from({ length: 10 }, (_, i) => {
       const [x, y] = target(i % 4);
       // Lobbed in from below or the sides, by throwers just out of shot.
       const side = Math.floor(rand(0, 3));
@@ -358,7 +358,7 @@ const paint = {
       const below = fromY - y, apex = Math.max(rand(80, 200), 60 - below);
       const g = (2 * (Math.sqrt(below + apex) + Math.sqrt(apex)) ** 2) / flight ** 2;
       return {
-        hit: 1200 + i * 380 + rand(-80, 80),
+        hit: 1000 + i * 260 + rand(-60, 60),
         x, y, fromX, fromY, flight, g,
         vy0: -Math.sqrt(2 * g * (below + apex)),
         r: rand(38, 70),
@@ -412,7 +412,7 @@ const paint = {
         }
         for (let i = 0; i < Math.floor(rand(1, 4)); i++) {
           const x = shot.x + rand(-0.6, 0.6) * shot.r, y = shot.y + rand(0.1, 0.6) * shot.r;
-          if (insideNumber(s, x, y)) s.drips.push({ x, y, v: rand(0.05, 0.11), w: rand(5, 9), len: 0, max: rand(60, 190), start: shot.hit + rand(250, 900), colour: shot.colour, done: false });
+          if (insideNumber(s, x, y)) s.drips.push({ x, y, v: rand(0.05, 0.11), w: rand(5, 9), len: 0, max: rand(60, 190), start: shot.hit + rand(200, 600), colour: shot.colour, done: false });
         }
       }
       if (!shot.grown) {
@@ -711,85 +711,232 @@ const weather = {
 };
 
 
-// --- Bob Ross: a little landscape painted in, happy little trees and all ---
+// --- Bob Ross: the landscape painted stroke by stroke ---------------------
+// Every stroke is laid down a little each frame as a spread of bristle
+// marks, so the picture builds up the way paint does, and the tool doing
+// the work (two-inch brush, palette knife or fan brush) is drawn at the
+// head of the stroke. Strokes are planned in setup and timed across the ident.
+
+// Blend two #rrggbb colours; k = 0 gives a, 1 gives b.
+function mixHex(a, b, k) {
+  const pa = a.match(/\w\w/g).map((h) => parseInt(h, 16)), pb = b.match(/\w\w/g).map((h) => parseInt(h, 16));
+  return '#' + pa.map((v, i) => Math.round(v + (pb[i] - v) * k).toString(16).padStart(2, '0')).join('');
+}
+
+// One stroke: a path, a width, a colour, and bristles that each carry a
+// slightly different shade and sit at their own offset across the brush.
+function makeStroke(tool, pts, width, colour, start, end, extra = {}) {
+  const lengths = [0];
+  for (let i = 1; i < pts.length; i++) lengths.push(lengths[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const count = tool === 'knife' ? 6 : tool === 'fan' ? 9 : 14;
+  const bristles = Array.from({ length: count }, (_, i) => ({
+    offset: (i / (count - 1) - 0.5) * (tool === 'fan' ? 1.6 : 1) + rand(-0.04, 0.04),
+    size: rand(0.6, 1.2),
+    alpha: rand(0.45, 0.9),
+    colour: mixHex(colour, rand(0, 1) < 0.5 ? '#000000' : '#ffffff', rand(0, 0.18)),
+  }));
+  return { tool, pts, lengths, total: lengths.at(-1), width, start, end, bristles, done: 0, ...extra };
+}
+
+function pointAt(stroke, d) {
+  const { pts, lengths } = stroke;
+  let i = 1;
+  while (i < lengths.length - 1 && lengths[i] < d) i++;
+  const k = (d - lengths[i - 1]) / ((lengths[i] - lengths[i - 1]) || 1);
+  const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+  return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k, angle: Math.atan2(y1 - y0, x1 - x0) };
+}
+
+// Lay the stroke down from where it got to last frame up to `upto` (0-1).
+// Each bristle's marks for the frame go into one path, filled once: a few
+// dozen draw calls per frame rather than thousands of tiny ones.
+function paintStroke(ctx, stroke, upto, allowed) {
+  const from = stroke.done * stroke.total, to = upto * stroke.total;
+  const samples = [];
+  for (let d = from; d <= to; d += 3) {
+    const t = d / (stroke.total || 1);
+    // Full width through the middle of the stroke, tapering only at each end.
+    const taper = stroke.tool === 'knife' ? 1 : 0.35 + 0.65 * Math.min(1, 2.2 * Math.sin(Math.PI * t));
+    const { x, y, angle } = pointAt(stroke, d);
+    samples.push({ x, y, nx: -Math.sin(angle), ny: Math.cos(angle), taper });
+  }
+  for (const b of stroke.bristles) {
+    const r = (stroke.width / stroke.bristles.length) * b.size * (stroke.tool === 'knife' ? 1.6 : 1.1) + 0.6;
+    ctx.beginPath();
+    for (const sm of samples) {
+      const bx = sm.x + sm.nx * b.offset * stroke.width * sm.taper, by = sm.y + sm.ny * b.offset * stroke.width * sm.taper;
+      if (!allowed(bx, by)) continue;
+      ctx.rect(bx - r, by - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = b.alpha * (stroke.tool === 'knife' ? 1 : 0.8);
+    ctx.fillStyle = b.colour;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  stroke.done = upto;
+}
+
+// The tool in hand, at the head of the stroke being painted.
+function drawTool(ctx, stroke) {
+  const { x, y, angle } = pointAt(stroke, stroke.done * stroke.total);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle + Math.PI / 2 + 0.5);
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 6;
+  const paint = stroke.bristles[0].colour;
+  if (stroke.tool === 'knife') {
+    poly(ctx, [[-10, 0], [10, 0], [6, -46], [-6, -46]], '#c8ccd2');
+    ctx.fillStyle = '#7a7f86';
+    ctx.fillRect(-2, -80, 4, 36);
+    ctx.fillStyle = '#5b3a24';
+    ctx.fillRect(-6, -150, 12, 72);
+  } else if (stroke.tool === 'fan') {
+    ctx.fillStyle = paint;
+    ctx.beginPath();
+    ctx.moveTo(0, -28);
+    ctx.arc(0, -28, 30, Math.PI * 0.2, Math.PI * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#b9bcc2';
+    ctx.fillRect(-5, -44, 10, 18);
+    ctx.fillStyle = '#5b3a24';
+    ctx.fillRect(-4, -150, 8, 108);
+  } else {
+    ctx.fillStyle = paint;
+    ctx.fillRect(-24, -26, 48, 26);
+    ctx.fillStyle = '#b9bcc2';
+    ctx.fillRect(-26, -50, 52, 26);
+    ctx.fillStyle = '#5b3a24';
+    ctx.fillRect(-9, -170, 18, 122);
+  }
+  ctx.restore();
+}
 
 const bobross = {
   setup(info) {
-    const left = W * 0.1, top = H * 0.06, cw = W * 0.8, ch = H * 0.64;
-    const trees = [
-      { x: left + cw * 0.12, base: top + ch * 0.97, h: ch * 0.55, at: 0.42 },
-      { x: left + cw * 0.24, base: top + ch * 0.99, h: ch * 0.42, at: 0.5 },
-      { x: left + cw * 0.86, base: top + ch * 0.98, h: ch * 0.5, at: 0.58 },
+    const left = W * 0.1, top = H * 0.06, cw = W * 0.8, ch = H * 0.64, base = top + ch;
+    const strokes = [];
+    const span = (from, to, list) => list.forEach((st, i) => {
+      st.start = from + ((to - from) * i) / list.length;
+      st.end = from + ((to - from) * (i + 1.4)) / list.length;
+    });
+
+    // Sky: criss-cross strokes, Prussian blue at the top lightening to the
+    // horizon. They start and end off the canvas, as Bob's do, so the tapered
+    // ends don't leave gaps at the sides.
+    const sky = [];
+    for (let i = 0; i < 13; i++) {
+      const y = top + 8 + i * (ch * 0.62 / 13), dir = i % 2 ? 1 : -1;
+      sky.push(makeStroke('brush', [[left - 160, y - dir * 50], [left + cw + 160, y + dir * 50]], ch * 0.12, mixHex('#1b2f5c', '#cfdcea', i / 12), 0, 0));
+    }
+    span(0, 0.22, sky);
+
+    // Mountains: knife strokes fanning down from each peak, then snow pulled
+    // down the lit side.
+    const mountains = [
+      { px: left + cw * 0.32, py: top + ch * 0.24, x0: left - 20, x1: left + cw * 0.62 },
+      { px: left + cw * 0.7, py: top + ch * 0.16, x0: left + cw * 0.42, x1: left + cw + 20 },
     ];
-    return { left, top, cw, ch, trees, mask: numberMask(String(info.number), 300) };
+    const rock = [], snow = [];
+    for (const m of mountains) {
+      for (let k = 0; k <= 10; k++) {
+        const bx = m.x0 + ((m.x1 - m.x0) * k) / 10;
+        rock.push(makeStroke('knife', [[m.px, m.py], [bx, base - ch * 0.18]], 22, rand(0, 1) < 0.5 ? '#4a4858' : '#3c3a4a', 0, 0));
+      }
+      for (let k = 0; k < 4; k++) {
+        const bx = m.px - (m.px - m.x0) * (0.12 + k * 0.07);
+        snow.push(makeStroke('knife', [[m.px, m.py + 2], [bx, m.py + ch * (0.12 + k * 0.03)]], 9, '#f4f6fa', 0, 0));
+      }
+    }
+    span(0.2, 0.36, rock);
+    span(0.34, 0.42, snow);
+
+    // Meadow: broad horizontal strokes along the bottom.
+    const ground = [];
+    for (let i = 0; i < 5; i++) {
+      const y = base - ch * 0.2 + i * (ch * 0.05), dir = i % 2;
+      ground.push(makeStroke('brush', dir ? [[left + cw + 120, y], [left - 120, y + 6]] : [[left - 120, y], [left + cw + 120, y - 6]], ch * 0.075, i % 2 ? '#2f5a26' : '#3e6e2d', 0, 0));
+    }
+    span(0.38, 0.46, ground);
+
+    // The number, brushed on in titanium white, only where the numeral is.
+    const mask = numberMask(String(info.number), 300);
+    const alpha = mask.getContext('2d').getImageData(0, 0, W, H).data;
+    const shift = Math.round(H * 0.1);
+    const allowed = (x, y) => {
+      const xi = Math.round(x), yi = Math.round(y + shift);
+      return xi >= 0 && yi >= 0 && xi < W && yi < H && alpha[(yi * W + xi) * 4 + 3] > 128;
+    };
+    let y0 = H, y1 = 0;
+    for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) if (alpha[(y * W + x) * 4 + 3] > 128) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const number = [];
+    for (let y = y0 - shift; y <= y1 - shift; y += 16) {
+      number.push(makeStroke('brush', number.length % 2 ? [[W * 0.8, y], [W * 0.2, y + 4]] : [[W * 0.2, y], [W * 0.8, y + 4]], 22, '#f7f5ef', 0, 0, { allowed }));
+    }
+    span(0.42, 0.6, number);
+
+    // Happy little trees: a trunk, then the fan brush tapping in tiers from
+    // the top down, then a few highlights.
+    const trees = [
+      { x: left + cw * 0.12, h: ch * 0.55 },
+      { x: left + cw * 0.24, h: ch * 0.42 },
+      { x: left + cw * 0.87, h: ch * 0.5 },
+    ];
+    const treeStrokes = [];
+    for (const t of trees) {
+      const crown = base - t.h;
+      treeStrokes.push(makeStroke('brush', [[t.x, crown + 10], [t.x, base - 4]], 6, '#3a2414', 0, 0));
+      for (let k = 0; k < 9; k++) {
+        const y = crown + (k * t.h * 0.82) / 9, half = 6 + (k / 8) * t.h * 0.3;
+        const green = k % 2 ? '#1c3f22' : '#24502a';
+        treeStrokes.push(makeStroke('fan', [[t.x, y], [t.x - half, y + t.h * 0.07]], 16, green, 0, 0));
+        treeStrokes.push(makeStroke('fan', [[t.x, y], [t.x + half, y + t.h * 0.07]], 16, green, 0, 0));
+      }
+      for (let k = 2; k < 8; k += 2) {
+        const y = crown + (k * t.h * 0.82) / 9, half = (k / 8) * t.h * 0.22;
+        treeStrokes.push(makeStroke('fan', [[t.x + 4, y + 4], [t.x + half, y + t.h * 0.06]], 8, '#6f9a3a', 0, 0));
+      }
+    }
+    span(0.5, 0.86, treeStrokes);
+
+    // Faint canvas weave over everything.
+    const weave = document.createElement('canvas');
+    weave.width = W;
+    weave.height = H;
+    const wctx = weave.getContext('2d');
+    wctx.fillStyle = 'rgba(0,0,0,0.05)';
+    for (let x = 0; x < W; x += 3) wctx.fillRect(x, 0, 1, H);
+    for (let y = 0; y < H; y += 3) wctx.fillRect(0, y, W, 1);
+
+    const layer = document.createElement('canvas');
+    layer.width = W;
+    layer.height = H;
+    return { left, top, cw, ch, layer, weave, strokes: [...sky, ...rock, ...snow, ...ground, ...number, ...treeStrokes] };
   },
+
   draw(ctx, p, t, info, s) {
     const { left, top, cw, ch } = s;
     ctx.fillStyle = '#3a2718';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#f4efe2';
     ctx.fillRect(left, top, cw, ch);
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(left, top, cw, ch);
-    ctx.clip();
 
-    // Sky, in broad strokes from left to right.
-    const sky = clamp(p / 0.25);
-    const g = ctx.createLinearGradient(0, top, 0, top + ch * 0.7);
-    g.addColorStop(0, '#1d3b6e');
-    g.addColorStop(1, '#f6e7c8');
-    ctx.fillStyle = g;
-    for (let i = 0; i < 6; i++) {
-      const k = clamp(sky * 1.4 - i * 0.08);
-      ctx.fillRect(left, top + i * ch * 0.12, cw * k, ch * 0.13);
-    }
-
-    // Mountains, revealed top down.
-    const mtn = clamp((p - 0.2) / 0.22);
-    if (mtn) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(left, top, cw, ch * 0.35 + ch * 0.65 * mtn);
-      ctx.clip();
-      poly(ctx, [[left, top + ch * 0.75], [left + cw * 0.3, top + ch * 0.25], [left + cw * 0.5, top + ch * 0.55], [left + cw * 0.7, top + ch * 0.18], [left + cw, top + ch * 0.7], [left + cw, top + ch], [left, top + ch]], '#4b4a5a');
-      poly(ctx, [[left + cw * 0.3, top + ch * 0.25], [left + cw * 0.36, top + ch * 0.36], [left + cw * 0.27, top + ch * 0.34]], '#fff');
-      poly(ctx, [[left + cw * 0.7, top + ch * 0.18], [left + cw * 0.77, top + ch * 0.31], [left + cw * 0.65, top + ch * 0.28]], '#fff');
-      ctx.restore();
-    }
-    // Meadow.
-    const field = clamp((p - 0.35) / 0.12);
-    if (field) {
-      ctx.fillStyle = '#3f6b2e';
-      ctx.fillRect(left, top + ch * (1 - 0.22 * field), cw, ch * 0.22);
-    }
-    // Happy little trees, a tier at a time from the bottom up.
-    for (const tree of s.trees) {
-      const k = clamp((p - tree.at) / 0.14);
-      if (!k) continue;
-      ctx.fillStyle = '#4a2f1b';
-      ctx.fillRect(tree.x - 4, tree.base - tree.h * 0.12, 8, tree.h * 0.12);
-      const tiers = 5;
-      for (let i = 0; i < Math.ceil(tiers * k); i++) {
-        const y = tree.base - tree.h * 0.1 - (i * tree.h * 0.85) / tiers;
-        const w = tree.h * 0.32 * (1 - i / (tiers + 1));
-        poly(ctx, [[tree.x - w, y], [tree.x + w, y], [tree.x, y - tree.h * 0.28]], i % 2 ? '#1f4a26' : '#2a5e30');
+    // Paint this frame's share of every stroke in progress, inside the canvas.
+    const l = s.layer.getContext('2d');
+    let active = null;
+    const inCanvas = (x, y) => x >= left && x <= left + cw && y >= top && y <= top + ch;
+    for (const st of s.strokes) {
+      const k = clamp((p - st.start) / (st.end - st.start));
+      if (k > st.done) {
+        paintStroke(l, st, k, st.allowed ? (x, y) => inCanvas(x, y) && st.allowed(x, y) : inCanvas);
+        if (k < 1) active = st;
       }
     }
-    ctx.restore();
-
-    // The channel number, painted on in titanium white.
-    const num = clamp((p - 0.3) / 0.28);
-    if (num) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, W * num, H);
-      ctx.clip();
-      ctx.shadowColor = 'rgba(0,0,0,0.35)';
-      ctx.shadowBlur = 12;
-      ctx.drawImage(s.mask, 0, -H * 0.1);
-      ctx.restore();
-    }
+    ctx.drawImage(s.layer, 0, 0);
+    ctx.drawImage(s.weave, left, top, cw, ch, left, top, cw, ch);
+    if (active) drawTool(ctx, active);
     caption(ctx, p, info);
   },
 };
